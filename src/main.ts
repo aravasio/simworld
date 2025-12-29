@@ -1,6 +1,6 @@
 // Entry point wiring: boots the world/agents, renderer, loop, and debug UI.
 // Purpose: demonstrate how the pieces connect; replace bootstrap details as the project evolves.
-import { createWorld, TileFlag } from './world';
+import { createWorld, TileFlag, inBounds } from './world';
 import { createAgents, addAgent } from './agents';
 import { createDebugUI } from './ui';
 import { FixedStepLoop } from './loop';
@@ -42,6 +42,8 @@ function bootstrap() {
       glyphId: a.glyphId,
     }))
   );
+  const cursor = { x: center.x - 1, y: center.y }; // start cursor on X
+  backend.setCursorPosition(cursor.x, cursor.y);
 
   const loop = new FixedStepLoop(
     { stepMs: 1000 / 10 },
@@ -59,10 +61,50 @@ function bootstrap() {
       onRender: () => renderer.draw(),
     }
   );
+  // Start paused so simulation does not advance until user resumes.
+  loop.pause();
 
   createDebugUI({
     loop,
     getState: () => loop.getState(),
+  });
+
+  const moveCursor = (dx: number, dy: number) => {
+    const nx = cursor.x + dx;
+    const ny = cursor.y + dy;
+    if (!inBounds(world, nx, ny)) return;
+    cursor.x = nx;
+    cursor.y = ny;
+    backend.setCursorPosition(cursor.x, cursor.y);
+  };
+
+  window.addEventListener('keydown', (event) => {
+    let handled = true;
+    switch (event.key) {
+      case 'ArrowUp':
+      case 'w':
+      case 'W':
+        moveCursor(0, -1);
+        break;
+      case 'ArrowDown':
+      case 's':
+      case 'S':
+        moveCursor(0, 1);
+        break;
+      case 'ArrowLeft':
+      case 'a':
+      case 'A':
+        moveCursor(-1, 0);
+        break;
+      case 'ArrowRight':
+      case 'd':
+      case 'D':
+        moveCursor(1, 0);
+        break;
+      default:
+        handled = false;
+    }
+    if (handled) event.preventDefault();
   });
 
   loop.start();

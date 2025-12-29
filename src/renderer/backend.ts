@@ -26,6 +26,7 @@ export interface RenderBackend {
   applyTileChanges(changes: TileChange[]): void;
   setAgents(agents: AgentVisual[]): void;
   applyAgentMoves(moves: Array<{ id: number; x: number; y: number; glyphId?: number }>): void;
+  setCursorPosition(x: number, y: number): void;
   draw(): void;
   destroy(): void;
 }

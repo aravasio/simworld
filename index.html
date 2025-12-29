@@ -21,6 +21,8 @@
         display: block;
         background: #111;
         image-rendering: pixelated;
+        border: 2px solid #2f2f2f;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
       }
       #ui {
         display: flex;
@@ -29,6 +31,31 @@
         background: #1a1a1a;
         border-top: 1px solid #222;
         padding: 0.5rem;
+        color: #e5e7eb;
+      }
+      button {
+        background: linear-gradient(180deg, #10b981, #0f766e);
+        color: #0b1014;
+        border: 1px solid #0f766e;
+        border-radius: 6px;
+        padding: 0.35rem 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+      }
+      button#resume {
+        background: linear-gradient(180deg, #22d3ee, #0ea5e9);
+        border-color: #0ea5e9;
+      }
+      button#step {
+        background: linear-gradient(180deg, #f59e0b, #d97706);
+        border-color: #d97706;
+      }
+      button:hover {
+        filter: brightness(1.05);
+      }
+      label {
+        color: #9ca3af;
       }
       input[type='number'] {
         width: 4rem;

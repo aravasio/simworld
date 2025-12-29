@@ -12,6 +12,7 @@ export class PixiBackend implements RenderBackend {
   private gridWidth = 0;
   private gridHeight = 0;
   private agentSprites = new Map<number, Text>();
+  private cursor: Graphics | null = null;
 
   async init(canvas: HTMLCanvasElement, _tileset: TilesetMeta): Promise<void> {
     const deviceScale = window.devicePixelRatio || 1;
@@ -23,7 +24,8 @@ export class PixiBackend implements RenderBackend {
     });
     this.tileLayer = new Graphics();
     this.agentLayer = new Container();
-    this.app.stage.addChild(this.tileLayer, this.agentLayer);
+    this.cursor = new Graphics();
+    this.app.stage.addChild(this.tileLayer, this.agentLayer, this.cursor);
   }
 
   setStaticTiles(width: number, height: number, _tiles: number[]): void {
@@ -72,6 +74,13 @@ export class PixiBackend implements RenderBackend {
     moves.forEach((move) => this.addOrUpdateAgent({ id: move.id, x: move.x, y: move.y, glyphId: move.glyphId ?? 0 }));
   }
 
+  setCursorPosition(x: number, y: number): void {
+    if (!this.cursor) return;
+    this.cursor.clear();
+    this.cursor.lineStyle({ width: 2, color: 0xfacc15, alpha: 1 });
+    this.cursor.drawRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize);
+  }
+
   draw(): void {
     this.app?.render();
   }
@@ -81,6 +90,7 @@ export class PixiBackend implements RenderBackend {
     this.agentSprites.clear();
     this.tileLayer = null;
     this.agentLayer = null;
+    this.cursor = null;
     this.app = null;
   }
 
