@@ -7,12 +7,10 @@ import { AgentVisual, RenderBackend, TileChange, TilesetMeta } from './backend';
 export class PixiBackend implements RenderBackend {
   private app: Application | null = null;
   private tileLayer: Graphics | null = null;
-  private entityLayer: Container | null = null;
   private agentLayer: Container | null = null;
   private cellSize = 48; // fixed pixel size per cell
   private gridWidth = 0;
   private gridHeight = 0;
-  private entitySprites = new Map<number, Text>();
   private agentSprites = new Map<number, Text>();
   private cursor: Graphics | null = null;
 
@@ -25,10 +23,9 @@ export class PixiBackend implements RenderBackend {
       resolution: deviceScale,
     });
     this.tileLayer = new Graphics();
-    this.entityLayer = new Container();
     this.agentLayer = new Container();
     this.cursor = new Graphics();
-    this.app.stage.addChild(this.tileLayer, this.entityLayer, this.agentLayer, this.cursor);
+    this.app.stage.addChild(this.tileLayer, this.agentLayer, this.cursor);
   }
 
   setStaticTiles(width: number, height: number, _tiles: number[]): void {
@@ -66,22 +63,15 @@ export class PixiBackend implements RenderBackend {
     // Tiles are static colored grid for now; tile changes would redraw tiles if implemented.
   }
 
-  setEntities(entities: AgentVisual[]): void {
-    if (!this.entityLayer) return;
-    this.entityLayer.removeChildren();
-    this.entitySprites.clear();
-    entities.forEach((e) => this.addOrUpdateEntity(e));
-  }
-
-  setAgents(agents: AgentVisual[]): void {
+  setActors(actors: AgentVisual[]): void {
     if (!this.agentLayer) return;
     this.agentLayer.removeChildren();
     this.agentSprites.clear();
-    agents.forEach((a) => this.addOrUpdateAgent(a));
+    actors.forEach((a) => this.addOrUpdateActor(a));
   }
 
-  applyAgentMoves(moves: Array<{ id: number; x: number; y: number; glyphId?: number }>): void {
-    moves.forEach((move) => this.addOrUpdateAgent({ id: move.id, x: move.x, y: move.y, glyphId: move.glyphId ?? 0 }));
+  applyActorMoves(moves: Array<{ id: number; x: number; y: number; glyphId?: number }>): void {
+    moves.forEach((move) => this.addOrUpdateActor({ id: move.id, x: move.x, y: move.y, glyphId: move.glyphId ?? 0 }));
   }
 
   setCursorPosition(x: number, y: number): void {
@@ -99,50 +89,20 @@ export class PixiBackend implements RenderBackend {
     this.app?.destroy(true, { children: true, texture: true, baseTexture: true });
     this.agentSprites.clear();
     this.tileLayer = null;
-    this.entityLayer = null;
     this.agentLayer = null;
     this.cursor = null;
     this.app = null;
   }
 
-  private addOrUpdateEntity(entity: AgentVisual) {
-    if (!this.entityLayer) return;
-    let sprite = this.entitySprites.get(entity.id);
+  private addOrUpdateActor(actor: AgentVisual) {
+    if (!this.agentLayer) return;
+    let sprite = this.agentSprites.get(actor.id);
     if (!sprite) {
-      const { char, color } = glyphForEntity(entity.glyphId);
+      const { char, color } = glyphForActor(actor.glyphId);
       sprite = new Text(
         char,
         new TextStyle({
           fill: color,
-          fontFamily: 'monospace',
-          fontSize: Math.floor(this.cellSize * 0.55),
-          fontWeight: 'bold',
-        })
-      );
-      sprite.anchor.set(0.5);
-      this.entityLayer.addChild(sprite);
-      this.entitySprites.set(entity.id, sprite);
-    }
-    const { char, color } = glyphForEntity(entity.glyphId);
-    sprite.text = char;
-    sprite.style = new TextStyle({
-      fill: color,
-      fontFamily: 'monospace',
-      fontSize: Math.floor(this.cellSize * 0.55),
-      fontWeight: 'bold',
-    });
-    sprite.x = (entity.x + 0.5) * this.cellSize;
-    sprite.y = (entity.y + 0.5) * this.cellSize;
-  }
-
-  private addOrUpdateAgent(agent: AgentVisual) {
-    if (!this.agentLayer) return;
-    let sprite = this.agentSprites.get(agent.id);
-    if (!sprite) {
-      sprite = new Text(
-        agent.glyphId === 1 ? 'X' : 'Y',
-        new TextStyle({
-          fill: agent.glyphId === 1 ? '#4ade80' : '#f87171',
           fontFamily: 'monospace',
           fontSize: Math.floor(this.cellSize * 0.6),
           fontWeight: 'bold',
@@ -151,22 +111,27 @@ export class PixiBackend implements RenderBackend {
 
       sprite.anchor.set(0.5);
       this.agentLayer.addChild(sprite);
-      this.agentSprites.set(agent.id, sprite);
+      this.agentSprites.set(actor.id, sprite);
     }
-    sprite.text = agent.glyphId === 1 ? 'X' : 'Y';
+    const { char, color } = glyphForActor(actor.glyphId);
+    sprite.text = char;
     sprite.style = new TextStyle({
-      fill: agent.glyphId === 1 ? '#4ade80' : '#f87171',
+      fill: color,
       fontFamily: 'monospace',
       fontSize: Math.floor(this.cellSize * 0.6),
       fontWeight: 'bold',
     });
-    sprite.x = (agent.x + 0.5) * this.cellSize;
-    sprite.y = (agent.y + 0.5) * this.cellSize;
+    sprite.x = (actor.x + 0.5) * this.cellSize;
+    sprite.y = (actor.y + 0.5) * this.cellSize;
   }
 }
 
-function glyphForEntity(glyphId: number): { char: string; color: string } {
+function glyphForActor(glyphId: number): { char: string; color: string } {
   switch (glyphId) {
+    case 1:
+      return { char: 'X', color: '#4ade80' };
+    case 2:
+      return { char: 'Y', color: '#f87171' };
     case 3:
       return { char: '#', color: '#9ca3af' }; // stone
     case 4:

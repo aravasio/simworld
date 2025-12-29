@@ -1,8 +1,18 @@
 // Entry point wiring: boots the world/agents, renderer, loop, and debug UI.
 // Purpose: demonstrate how the pieces connect; replace bootstrap details as the project evolves.
 import { createWorld, TileFlag, inBounds } from './world';
-import { createAgents, addAgent } from './agents';
-import { createEntities, addEntity, removeEntity, updateEntity, EntitiesState, Entity } from './entities';
+import {
+  createActors,
+  createActor,
+  removeActor,
+  ActorsState,
+  Actor,
+  getPosition,
+  getRenderable,
+  getTags,
+  getKind,
+  ActorComponents,
+} from './actors';
 import { createDebugUI } from './ui';
 import { FixedStepLoop } from './loop';
 import { Renderer } from './renderer/renderer';
@@ -21,30 +31,37 @@ function bootstrap() {
   const center = { x: Math.floor(worldSize.width / 2), y: Math.floor(worldSize.height / 2) };
   const bottomY = worldSize.height - 1;
 
-  let agents = createAgents();
-  agents = addAgent(agents, { id: 1, x: center.x - 1, y: bottomY, glyphId: 1 }); // Green X to the left
-  agents = addAgent(agents, { id: 2, x: center.x + 1, y: bottomY, glyphId: 2 }); // Red Y to the right
+  let actors = createActors();
+  actors = createActor(actors, { id: 1 }, [
+    ActorComponents.kind('creature'),
+    ActorComponents.position({ x: center.x - 1, y: bottomY }),
+    ActorComponents.renderable({ glyphId: 1 }),
+    ActorComponents.vitals({ maxHp: 10, maxMp: 5, maxStamina: 8, hp: 10, mp: 5, stamina: 8 }),
+    ActorComponents.tags(['dwarf']),
+  ]); // Green X to the left
+  actors = createActor(actors, { id: 2 }, [
+    ActorComponents.kind('creature'),
+    ActorComponents.position({ x: center.x + 1, y: bottomY }),
+    ActorComponents.renderable({ glyphId: 2 }),
+    ActorComponents.vitals({ maxHp: 10, maxMp: 5, maxStamina: 8, hp: 10, mp: 5, stamina: 8 }),
+    ActorComponents.tags(['dwarf']),
+  ]); // Red Y to the right
 
-  let entities = createEntities();
-  let nextEntityId = 100;
-  entities = addEntity(entities, {
-    id: nextEntityId++,
-    x: center.x - 1,
-    y: 0,
-    glyphId: 3,
-    kind: 'rock',
-    hp: 3,
-  });
-  entities = addEntity(entities, {
-    id: nextEntityId++,
-    x: center.x + 1,
-    y: 0,
-    glyphId: 3,
-    kind: 'rock',
-    hp: 3,
-  });
+  let nextActorId = 100;
+  actors = createActor(actors, { id: nextActorId++ }, [
+    ActorComponents.kind('rock'),
+    ActorComponents.position({ x: center.x - 1, y: 0 }),
+    ActorComponents.renderable({ glyphId: 3 }),
+    ActorComponents.tags(['mineable', 'solid']),
+  ]);
+  actors = createActor(actors, { id: nextActorId++ }, [
+    ActorComponents.kind('rock'),
+    ActorComponents.position({ x: center.x + 1, y: 0 }),
+    ActorComponents.renderable({ glyphId: 3 }),
+    ActorComponents.tags(['mineable', 'solid']),
+  ]);
 
-  const initialState: GameState = { world, agents, entities, tick: 0 };
+  const initialState: GameState = { world, actors, tick: 0 };
   let rngSeed: RngSeed = 12345;
   let dropSeed: RngSeed = 7777;
 
@@ -56,22 +73,17 @@ function bootstrap() {
   });
 
   renderer.setWorld(world, (terrainId) => terrainId);
-  backend.setAgents(
-    initialState.agents.agents.map((a) => ({
-      id: a.id,
-      x: a.x,
-      y: a.y,
-      glyphId: a.glyphId,
-    }))
-  );
-  backend.setEntities(
-    entities.entities.map((e) => ({
-      id: e.id,
-      x: e.x,
-      y: e.y,
-      glyphId: e.glyphId,
-    }))
-  );
+  const renderables = Array.from(initialState.actors.actors).map((actor) => {
+    const pos = getPosition(initialState.actors, actor.id);
+    const rend = getRenderable(initialState.actors, actor.id);
+    return {
+      id: actor.id,
+      x: pos?.x ?? 0,
+      y: pos?.y ?? 0,
+      glyphId: rend?.glyphId ?? 0,
+    };
+  });
+  backend.setActors(renderables);
   const cursor = { x: center.x - 1, y: bottomY }; // start cursor on X
   backend.setCursorPosition(cursor.x, cursor.y);
   const inspector = {
@@ -83,10 +95,12 @@ function bootstrap() {
     ui: document.getElementById('ui'),
   };
 
-  const glyphChar = (glyphId: number) => (glyphId === 1 ? 'X' : 'Y');
-  const glyphColor = (glyphId: number) => (glyphId === 1 ? '#4ade80' : '#f87171');
-  const entityGlyphChar = (glyphId: number) => {
+  const actorGlyphChar = (glyphId: number) => {
     switch (glyphId) {
+      case 1:
+        return 'X';
+      case 2:
+        return 'Y';
       case 3:
         return '#';
       case 4:
@@ -95,8 +109,12 @@ function bootstrap() {
         return '?';
     }
   };
-  const entityGlyphColor = (glyphId: number) => {
+  const actorGlyphColor = (glyphId: number) => {
     switch (glyphId) {
+      case 1:
+        return '#4ade80';
+      case 2:
+        return '#f87171';
       case 3:
         return '#9ca3af';
       case 4:
@@ -106,25 +124,33 @@ function bootstrap() {
     }
   };
 
-  const findEntityAt = (state: EntitiesState, x: number, y: number): Entity | undefined =>
-    state.entities.find((e) => e.x === x && e.y === y);
+  const findActorAt = (state: ActorsState, x: number, y: number): Actor | undefined => {
+    for (const actor of state.actors) {
+      const pos = state.positions.get(actor.id);
+      if (pos && pos.x === x && pos.y === y) return actor;
+    }
+    return undefined;
+  };
 
   const updateInspector = () => {
     if (!inspector.name || !inspector.glyph || !inspector.pos || !inspector.avatar) return;
-    const agent = agents.agents.find((a) => a.x === cursor.x && a.y === cursor.y);
-    const entity = agent ? undefined : findEntityAt(entities, cursor.x, cursor.y);
-    if (agent) {
-      inspector.name.textContent = `Agent ${agent.id}`;
-      const char = glyphChar(agent.glyphId);
+    const actor = findActorAt(actors, cursor.x, cursor.y);
+    if (actor) {
+      const kind = getKind(actors, actor.id);
+      if (kind === 'rock') {
+        inspector.name.textContent = 'Rock';
+      } else if (kind === 'rock-material') {
+        inspector.name.textContent = 'Rock Material';
+      } else {
+        const tags = getTags(actors, actor.id);
+        inspector.name.textContent = tags?.has('dwarf') ? `Dwarf ${actor.id}` : `Creature ${actor.id}`;
+      }
+      const rend = getRenderable(actors, actor.id);
+      const glyphId = rend?.glyphId ?? 0;
+      const char = actorGlyphChar(glyphId);
       inspector.glyph.textContent = char;
       inspector.avatar.textContent = char;
-      (inspector.avatar as HTMLElement).style.color = glyphColor(agent.glyphId);
-    } else if (entity) {
-      inspector.name.textContent = entity.kind === 'rock' ? 'Rock' : 'Rock Material';
-      const char = entityGlyphChar(entity.glyphId);
-      inspector.glyph.textContent = char;
-      inspector.avatar.textContent = char;
-      (inspector.avatar as HTMLElement).style.color = entityGlyphColor(entity.glyphId);
+      (inspector.avatar as HTMLElement).style.color = actorGlyphColor(glyphId);
     } else {
       inspector.name.textContent = 'None';
       inspector.glyph.textContent = '-';
@@ -144,7 +170,10 @@ function bootstrap() {
         renderer.applyDiff(
           result.diff,
           (terrainId) => terrainId,
-          (agentId) => (agentId === 1 ? 1 : 2)
+          (actorId) => {
+            const rend = getRenderable(actors, actorId);
+            return rend?.glyphId ?? 0;
+          }
         );
       },
       onRender: () => renderer.draw(),
@@ -167,39 +196,37 @@ function bootstrap() {
     backend.setCursorPosition(cursor.x, cursor.y);
   };
 
-  const refreshEntities = () => {
-    backend.setEntities(
-      entities.entities.map((e) => ({
-        id: e.id,
-        x: e.x,
-        y: e.y,
-        glyphId: e.glyphId,
-      }))
-    );
+  const refreshActors = () => {
+    const visuals = actors.actors.map((actor) => {
+      const pos = getPosition(actors, actor.id);
+      const rend = getRenderable(actors, actor.id);
+      return {
+        id: actor.id,
+        x: pos?.x ?? 0,
+        y: pos?.y ?? 0,
+        glyphId: rend?.glyphId ?? 0,
+      };
+    });
+    backend.setActors(visuals);
   };
 
   const mineRockAtCursor = () => {
-    const target = findEntityAt(entities, cursor.x, cursor.y);
-    if (!target || target.kind !== 'rock') return;
-    const nextHp = (target.hp ?? 0) - 1;
-    if (nextHp > 0) {
-      entities = updateEntity(entities, target.id, (e) => ({ ...e, hp: nextHp }));
-    } else {
-      entities = removeEntity(entities, target.id);
-      const roll = nextInt(dropSeed, 5);
-      dropSeed = roll.nextSeed;
-      const count = roll.value + 1;
-      for (let i = 0; i < count; i++) {
-        entities = addEntity(entities, {
-          id: nextEntityId++,
-          x: cursor.x,
-          y: cursor.y,
-          glyphId: 4,
-          kind: 'rock-material',
-        });
-      }
+    const target = findActorAt(actors, cursor.x, cursor.y);
+    const kind = target ? getKind(actors, target.id) : undefined;
+    if (!target || kind !== 'rock') return;
+    actors = removeActor(actors, target.id);
+    const roll = nextInt(dropSeed, 5);
+    dropSeed = roll.nextSeed;
+    const count = roll.value + 1;
+    for (let i = 0; i < count; i++) {
+      actors = createActor(actors, { id: nextActorId++ }, [
+        ActorComponents.kind('rock-material'),
+        ActorComponents.position({ x: cursor.x, y: cursor.y }),
+        ActorComponents.renderable({ glyphId: 4 }),
+        ActorComponents.tags(['item']),
+      ]);
     }
-    refreshEntities();
+    refreshActors();
     updateInspector();
   };
 

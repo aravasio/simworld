@@ -2,28 +2,26 @@
 // Purpose: define sim data (GameState, commands, mutations, diff) and the pure step function.
 // Interacts with: world/agents (reads and mutates via helpers), rng (advances seed), renderer (consumes diff).
 
-import { AgentsState, AgentId, moveAgent } from './agents';
-import { EntitiesState } from './entities';
+import { ActorsState, ActorId, getPosition, updatePosition } from './actors';
 import { WorldState, inBounds, isWalkable } from './world';
 import { RngSeed, nextInt } from './rng';
 
 export interface GameState {
   world: WorldState;
-  agents: AgentsState;
-  entities: EntitiesState;
+  actors: ActorsState;
   tick: number;
 }
 
 export type Command =
-  | { kind: 'move'; agentId: AgentId; dir: 'N' | 'S' | 'E' | 'W' }
-  | { kind: 'wait'; agentId: AgentId };
+  | { kind: 'move'; actorId: ActorId; dir: 'N' | 'S' | 'E' | 'W' }
+  | { kind: 'wait'; actorId: ActorId };
 
 export type Mutation =
-  | { kind: 'agentMoved'; agentId: AgentId; from: { x: number; y: number }; to: { x: number; y: number } };
+  | { kind: 'actorMoved'; actorId: ActorId; from: { x: number; y: number }; to: { x: number; y: number } };
 
 export interface SimDiff {
   tick: number;
-  agentMoves: Array<{ agentId: AgentId; from: { x: number; y: number }; to: { x: number; y: number } }>;
+  actorMoves: Array<{ actorId: ActorId; from: { x: number; y: number }; to: { x: number; y: number } }>;
   tileChanges: Array<{ x: number; y: number; terrainTypeId?: number; flagsMask?: number; flagsOp?: 'set' | 'clear' }>;
 }
 
@@ -58,53 +56,52 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
 
   // Optional random movement for idle agents
   if (config.randomWalkOnIdle) {
-    const idleAgents = state.agents.agents.filter((a) => !commands.some((c) => c.kind !== 'wait' && c.agentId === a.id));
-    for (const agent of idleAgents) {
+    const idleActors = state.actors.actors.filter((a) => !commands.some((c) => c.kind !== 'wait' && c.actorId === a.id));
+    for (const actor of idleActors) {
       const dirIndex = nextInt(seed, 4);
       seed = dirIndex.nextSeed;
       const dir = (['N', 'S', 'E', 'W'] as const)[dirIndex.value];
-      maybeQueueMove(mutations, state, agent.id, dir);
+      maybeQueueMove(mutations, state, actor.id, dir);
     }
   }
 
   // Apply mutations
-  let nextAgents = state.agents;
-  const agentMoves: SimDiff['agentMoves'] = [];
+  let nextActors = state.actors;
+  const actorMoves: SimDiff['actorMoves'] = [];
   for (const m of mutations) {
-    if (m.kind === 'agentMoved') {
-      nextAgents = moveAgent(nextAgents, m.agentId, m.to.x - m.from.x, m.to.y - m.from.y);
-      agentMoves.push({ agentId: m.agentId, from: m.from, to: m.to });
+    if (m.kind === 'actorMoved') {
+      nextActors = updatePosition(nextActors, m.actorId, { x: m.to.x, y: m.to.y });
+      actorMoves.push({ actorId: m.actorId, from: m.from, to: m.to });
     }
   }
 
   const nextState: GameState = {
     world: state.world,
-    agents: nextAgents,
-    entities: state.entities,
+    actors: nextActors,
     tick: state.tick + 1,
   };
 
   const diff: SimDiff = {
     tick: nextState.tick,
-    agentMoves,
+    actorMoves,
     tileChanges: [],
   };
 
   return { nextState, nextSeed: seed, diff };
 }
 
-function maybeQueueMove(mutations: Mutation[], state: GameState, agentId: AgentId, dir: 'N' | 'S' | 'E' | 'W') {
-  const agent = state.agents.agents.find((a) => a.id === agentId);
-  if (!agent) return;
+function maybeQueueMove(mutations: Mutation[], state: GameState, actorId: ActorId, dir: 'N' | 'S' | 'E' | 'W') {
+  const pos = getPosition(state.actors, actorId);
+  if (!pos) return;
   const { dx, dy } = DIRS[dir];
-  const nx = agent.x + dx;
-  const ny = agent.y + dy;
+  const nx = pos.x + dx;
+  const ny = pos.y + dy;
   if (!inBounds(state.world, nx, ny)) return;
   if (!isWalkable(state.world, nx, ny)) return;
   mutations.push({
-    kind: 'agentMoved',
-    agentId,
-    from: { x: agent.x, y: agent.y },
+    kind: 'actorMoved',
+    actorId,
+    from: { x: pos.x, y: pos.y },
     to: { x: nx, y: ny },
   });
 }

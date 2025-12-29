@@ -49,12 +49,12 @@ export class Renderer {
       }));
       this.backend.applyTileChanges(changes);
     }
-    if (diff.agentMoves.length) {
-      const moves = diff.agentMoves.map((m) => ({
-        id: m.agentId,
+    if (diff.actorMoves.length) {
+      const moves = diff.actorMoves.map((m) => ({
+        id: m.actorId,
         x: m.to.x,
         y: m.to.y,
-        glyphId: glyphForAgent(m.agentId),
+        glyphId: glyphForAgent(m.actorId),
       }));
       this.backend.applyAgentMoves(moves);
     }
