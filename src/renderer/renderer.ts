@@ -56,7 +56,7 @@ export class Renderer {
         y: m.to.y,
         glyphId: glyphForAgent(m.actorId),
       }));
-      this.backend.applyAgentMoves(moves);
+      this.backend.applyActorMoves(moves);
     }
   }
 

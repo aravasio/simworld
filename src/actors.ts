@@ -34,7 +34,8 @@ export type ActorComponent =
   | { kind: 'kind'; value: string }
   | { kind: 'selectable'; value: boolean }
   | { kind: 'targetable'; value: boolean }
-  | { kind: 'passability'; value: { allowsPassThrough: boolean } };
+  | { kind: 'passability'; value: { allowsPassThrough: boolean } }
+  | { kind: 'path'; value: { x: number; y: number }[] };
 
 export interface ActorsState {
   actors: Actor[];
@@ -47,6 +48,7 @@ export interface ActorsState {
   selectables: Map<ActorId, boolean>;
   targetables: Map<ActorId, boolean>;
   passability: Map<ActorId, { allowsPassThrough: boolean }>;
+  paths: Map<ActorId, { x: number; y: number }[]>;
 }
 
 export function createActors(): ActorsState {
@@ -61,6 +63,7 @@ export function createActors(): ActorsState {
     selectables: new Map(),
     targetables: new Map(),
     passability: new Map(),
+    paths: new Map(),
   };
 }
 
@@ -73,6 +76,7 @@ export const ActorComponents = {
   selectable: (value: boolean = true): ActorComponent => ({ kind: 'selectable', value }),
   targetable: (value: boolean = true): ActorComponent => ({ kind: 'targetable', value }),
   passability: (value: { allowsPassThrough: boolean }): ActorComponent => ({ kind: 'passability', value }),
+  path: (value: { x: number; y: number }[]): ActorComponent => ({ kind: 'path', value }),
 } as const;
 
 function addActorInternal(state: ActorsState, actor: Actor): ActorsState {
@@ -92,6 +96,7 @@ function addActorInternal(state: ActorsState, actor: Actor): ActorsState {
     selectables: state.selectables,
     targetables: state.targetables,
     passability: state.passability,
+    paths: state.paths,
   };
 }
 
@@ -105,6 +110,7 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
   let nextSelectables = withActor.selectables;
   let nextTargetables = withActor.targetables;
   let nextPassability = withActor.passability;
+  let nextPaths = withActor.paths;
   let kindValue: string | undefined;
   let hasVitals = false;
 
@@ -144,6 +150,10 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
         nextPassability = nextPassability === withActor.passability ? new Map(nextPassability) : nextPassability;
         nextPassability.set(actor.id, component.value);
         break;
+      case 'path':
+        nextPaths = nextPaths === withActor.paths ? new Map(nextPaths) : nextPaths;
+        nextPaths.set(actor.id, component.value);
+        break;
     }
   }
 
@@ -162,6 +172,7 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
     selectables: nextSelectables,
     targetables: nextTargetables,
     passability: nextPassability,
+    paths: nextPaths,
   };
 }
 
@@ -188,6 +199,8 @@ export function removeActor(state: ActorsState, id: ActorId): ActorsState {
   nextTargetables.delete(id);
   const nextPassability = new Map(state.passability);
   nextPassability.delete(id);
+  const nextPaths = new Map(state.paths);
+  nextPaths.delete(id);
   return {
     actors: nextActors,
     indexById: nextIndex,
@@ -199,6 +212,7 @@ export function removeActor(state: ActorsState, id: ActorId): ActorsState {
     selectables: nextSelectables,
     targetables: nextTargetables,
     passability: nextPassability,
+    paths: nextPaths,
   };
 }
 
@@ -254,4 +268,14 @@ export function isTargetable(state: ActorsState, id: ActorId): boolean {
 
 export function getPassability(state: ActorsState, id: ActorId): { allowsPassThrough: boolean } | undefined {
   return state.passability.get(id);
+}
+
+export function getPath(state: ActorsState, id: ActorId): { x: number; y: number }[] | undefined {
+  return state.paths.get(id);
+}
+
+export function setPath(state: ActorsState, id: ActorId, path: { x: number; y: number }[]): ActorsState {
+  const nextPaths = new Map(state.paths);
+  nextPaths.set(id, path);
+  return { ...state, paths: nextPaths };
 }

@@ -261,7 +261,7 @@ function bootstrap() {
   };
 
   const loop = new FixedStepLoop(
-    { stepMs: 1000 / 10 },
+    { stepMs: 1000 / 10, maxSubSteps: 1 },
     initialState,
     rngSeed,
     {

@@ -2,9 +2,10 @@
 // Purpose: define sim data (GameState, commands, mutations, diff) and the pure step function.
 // Interacts with: world/agents (reads and mutates via helpers), rng (advances seed), renderer (consumes diff).
 
-import { ActorComponents, ActorsState, ActorId, createActor, getKind, getPassability, getPosition, isTargetable, removeActor, updatePosition } from './actors';
+import { ActorComponents, ActorsState, ActorId, createActor, getKind, getPassability, getPath, getPosition, isTargetable, removeActor, setPath, updatePosition } from './actors';
 import { WorldState, inBounds, isWalkable } from './world';
 import { RngSeed, nextInt } from './rng';
+import { Pathfinding, PathfindingFn } from './pathfinding';
 
 export interface GameState {
   world: WorldState;
@@ -22,7 +23,8 @@ export type Command =
 export type Mutation =
   | { kind: 'actorMoved'; actorId: ActorId; from: { x: number; y: number }; to: { x: number; y: number } }
   | { kind: 'actorRemoved'; actorId: ActorId }
-  | { kind: 'actorAdded'; actorId: ActorId; x: number; y: number; glyphId: number };
+  | { kind: 'actorAdded'; actorId: ActorId; x: number; y: number; glyphId: number }
+  | { kind: 'pathSet'; actorId: ActorId; path: { x: number; y: number }[] };
 
 export interface SimDiff {
   tick: number;
@@ -40,6 +42,7 @@ export interface StepResult {
 
 export interface SimConfig {
   randomWalkOnIdle?: boolean;
+  pathfinder?: PathfindingFn;
 }
 
 const DIRS: Record<'N' | 'S' | 'E' | 'W', { dx: number; dy: number }> = {
@@ -53,13 +56,16 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
   const mutations: Mutation[] = [];
   let seed = rngSeed;
   let nextActorId = state.nextActorId;
+  const pathfinder = config.pathfinder ?? Pathfinding.bfs;
 
   // Handle explicit commands first
   for (const cmd of commands) {
     if (cmd.kind === 'move') {
       maybeQueueMove(mutations, state, cmd.actorId, cmd.dir);
     } else if (cmd.kind === 'moveTo') {
-      maybeQueueMoveTo(mutations, state, cmd.actorId, cmd.x, cmd.y);
+      const result = maybeQueueMoveTo(mutations, state, cmd.actorId, cmd.x, cmd.y, pathfinder, nextActorId, seed);
+      nextActorId = result.nextActorId;
+      seed = result.nextSeed;
     } else if (cmd.kind === 'mine') {
       const result = maybeQueueMine(mutations, state, cmd.actorId, nextActorId, seed);
       nextActorId = result.nextActorId;
@@ -77,6 +83,23 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
       const dir = (['N', 'S', 'E', 'W'] as const)[dirIndex.value];
       maybeQueueMove(mutations, state, actor.id, dir);
     }
+  }
+
+  // Consume one step of any stored path per tick.
+  for (const actor of state.actors.actors) {
+    const path = getPath(state.actors, actor.id);
+    if (!path || !path.length) continue;
+    const next = path[0];
+    if (!canMoveTo(state, actor.id, next.x, next.y)) continue;
+    const pos = getPosition(state.actors, actor.id);
+    if (!pos) continue;
+    mutations.push({
+      kind: 'actorMoved',
+      actorId: actor.id,
+      from: { x: pos.x, y: pos.y },
+      to: { x: next.x, y: next.y },
+    });
+    mutations.push({ kind: 'pathSet', actorId: actor.id, path: path.slice(1) });
   }
 
   // Apply mutations
@@ -100,6 +123,8 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
         ActorComponents.passability({ allowsPassThrough: true }),
       ]);
       actorsAdded.push({ actorId: m.actorId, x: m.x, y: m.y, glyphId: m.glyphId });
+    } else if (m.kind === 'pathSet') {
+      nextActors = setPath(nextActors, m.actorId, m.path);
     }
   }
 
@@ -136,16 +161,31 @@ function maybeQueueMove(mutations: Mutation[], state: GameState, actorId: ActorI
   });
 }
 
-function maybeQueueMoveTo(mutations: Mutation[], state: GameState, actorId: ActorId, x: number, y: number) {
+function maybeQueueMoveTo(
+  mutations: Mutation[],
+  state: GameState,
+  actorId: ActorId,
+  x: number,
+  y: number,
+  pathfinder: PathfindingFn,
+  nextActorId: number,
+  seed: RngSeed
+): { nextActorId: number; nextSeed: RngSeed } {
   const pos = getPosition(state.actors, actorId);
-  if (!pos) return;
-  if (!canMoveTo(state, actorId, x, y)) return;
-  mutations.push({
-    kind: 'actorMoved',
-    actorId,
-    from: { x: pos.x, y: pos.y },
-    to: { x, y },
-  });
+  if (!pos) return { nextActorId, nextSeed: seed };
+  const path = pathfinder(
+    { x: pos.x, y: pos.y },
+    { x, y },
+    {
+      inBounds: (qx, qy) => inBounds(state.world, qx, qy),
+      isWalkable: (qx, qy) => isWalkable(state.world, qx, qy),
+      isBlocked: (qx, qy) => isBlockedAt(state, actorId, qx, qy),
+    }
+  );
+  if (!path || path.length <= 1) return { nextActorId, nextSeed: seed };
+  const steps = path.slice(1);
+  mutations.push({ kind: 'pathSet', actorId, path: steps });
+  return { nextActorId, nextSeed: seed };
 }
 
 function maybeQueueMine(
@@ -174,14 +214,7 @@ function maybeQueueMine(
 function canMoveTo(state: GameState, actorId: ActorId, x: number, y: number): boolean {
   if (!inBounds(state.world, x, y)) return false;
   if (!isWalkable(state.world, x, y)) return false;
-  for (const actor of state.actors.actors) {
-    if (actor.id === actorId) continue;
-    const pos = getPosition(state.actors, actor.id);
-    if (!pos || pos.x !== x || pos.y !== y) continue;
-    const pass = getPassability(state.actors, actor.id);
-    if (!pass || !pass.allowsPassThrough) return false;
-  }
-  return true;
+  return !isBlockedAt(state, actorId, x, y);
 }
 
 function findAdjacentTargetable(state: GameState, x: number, y: number): { id: ActorId; x: number; y: number } | null {
@@ -196,4 +229,15 @@ function findAdjacentTargetable(state: GameState, x: number, y: number): { id: A
     }
   }
   return null;
+}
+
+function isBlockedAt(state: GameState, actorId: ActorId, x: number, y: number): boolean {
+  for (const actor of state.actors.actors) {
+    if (actor.id === actorId) continue;
+    const pos = getPosition(state.actors, actor.id);
+    if (!pos || pos.x !== x || pos.y !== y) continue;
+    const pass = getPassability(state.actors, actor.id);
+    if (!pass || !pass.allowsPassThrough) return true;
+  }
+  return false;
 }
