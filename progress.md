@@ -11,6 +11,7 @@ This file tracks engine milestones and current architecture choices. Keep it upd
 - Inspector shows info under cursor (name/glyph/position + vitals when present).
 - Move mode via Enter/E with red border cue; blocked moves show status message.
 - Move/mine commands run through sim step (command queue).
+- Sim returns command results (ok/error + reason) for UI feedback.
 - Input handling factored into a pure mapper (`src/input/input.ts`) for testability.
 - App wiring split into modules (bootstrap, input, inspector, ui, sim).
 - Minimal test harness in `tests/` covering pathfinding, movement, mining, input mapping, and world rules.
@@ -38,5 +39,5 @@ This file tracks engine milestones and current architecture choices. Keep it upd
 - Define walkability/solidity rules using tags or a dedicated component (passability exists but is ad-hoc).
 - Decide render ordering for stacked actors (items vs. rocks vs. creatures).
 - Strengthen FP guarantees by ensuring component maps are always copied on write.
-- Consider removing `let` state in `src/main.ts` in favor of functional pipelines.
+- Consider reducing mutable state in `src/app.ts` as sim queries expand.
 - Grow test coverage to include larger world configs and scenario snapshots.

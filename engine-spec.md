@@ -5,11 +5,15 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 
 ## Core Principles
 - **Pure and deterministic**: state + commands + rngSeed -> nextState + nextSeed + diff; no floats; fixed tick order.
-- **Data-first**: world and agents are dense data with semantic lookups; behavior lives in sim, not in render.
-- **Narrow interfaces**: world/agents via accessors; sim consumes/produces data; renderer uses a backend interface; dependencies do not leak.
+- **Data-first**: world and actors are dense data with semantic lookups; behavior lives in sim, not in render.
+- **Narrow interfaces**: world/actors via accessors; sim consumes/produces data; renderer uses a backend interface; dependencies do not leak.
 - **Small start, open future**: one layer, minimal pathfinding, no ECS/chunking; APIs leave room for entities, spells, more layers later.
 
 ## Data Model (What/Why)
+- **World vs Sim**
+  - World: static terrain data (size, tiles, flags) + narrow queries/mutations.
+  - Sim: authoritative rules that read World + Actors, apply Commands, and emit nextState + diff.
+  - Rationale: keeps terrain data simple and deterministic while centralizing game rules in one place.
 - **WorldState**
   - Purpose: authoritative grid of terrain and per-tile properties.
   - Contents: width, height; terrainTypeId: Uint16Array (what terrain is here); flags: Uint16Array (bitmask for quick properties like walkable/opaque).
@@ -44,7 +48,7 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 - Phases:
   1) Derive Mutation[] from commands + AI/random (advancing seed).
   2) Apply mutations to produce nextState (copy-on-write; reuse buffers when untouched).
-  3) Build diff for renderer (tick, actorMoves, tileChanges, actorsAdded/Removed).
+  3) Build diff for renderer (tick, actorMoves, tileChanges, actorsAdded/Removed, commandResults).
 - Rationale: keeps sim pure, deterministic, inspectable; diff avoids re-reading full state for render.
 
 ## Renderer (What/Why)
@@ -57,7 +61,7 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 - **TilesetMeta**
   - Maps glyphId -> UV coords, atlas image path.
   - Rationale: decouples glyph meaning from draw tech.
-- Behavior: static tile layer rebuilt only on tile changes; agent layer updated per tick; renderer never mutates sim.
+- Behavior: static tile layer rebuilt only on tile changes; actor layer updated per tick; renderer never mutates sim.
 - Rationale: performance via batching; clarity via separation.
 
 ## Loop (What/Why)
@@ -68,7 +72,7 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 
 ## Debug UI (What/Why)
 - Purpose: simple controls to drive the loop and observe tick.
-- Behavior: DOM buttons (pause/resume, step, speed select); display tick counter.
+- Behavior: DOM speed input + tick display; pause/step handled via keyboard.
 - Rationale: no framework; keeps UI separate from sim.
 
 ## Project Structure (What/Why each file)
