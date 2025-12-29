@@ -3,6 +3,7 @@ import { createDebugUI } from './ui';
 import { FixedStepLoop } from './loop';
 import { Renderer } from './renderer/renderer';
 import { PixiBackend } from './renderer/pixi';
+import { glyphForActor, glyphForTerrain } from './renderer/glyphs';
 import { RngSeed } from './rng';
 import { createInspector } from './inspector';
 import { interpretKeyInput } from './input';
@@ -38,16 +39,19 @@ export function startApp() {
     tileset: { atlasUrl: '', glyphs: {} },
   });
 
-  renderer.setWorld(world, (terrainId) => terrainId);
-  const renderables = Array.from(currentState.actors.actors).map((actor) => {
+  renderer.setWorld(world, glyphForTerrain);
+  const renderables = Array.from(currentState.actors.actors).flatMap((actor) => {
     const pos = getPosition(currentState.actors, actor.id);
+    if (!pos) return [];
     const rend = getRenderable(currentState.actors, actor.id);
-    return {
-      id: actor.id,
-      x: pos?.x ?? 0,
-      y: pos?.y ?? 0,
-      glyphId: rend?.glyphId ?? 0,
-    };
+    return [
+      {
+        id: actor.id,
+        x: pos.x,
+        y: pos.y,
+        glyphId: rend?.glyphId ?? 0,
+      },
+    ];
   });
   backend.setActors(renderables);
 
@@ -56,35 +60,8 @@ export function startApp() {
 
   const inspector = createInspector(document);
 
-  const actorGlyphChar = (glyphId: number) => {
-    switch (glyphId) {
-      case 1:
-        return 'X';
-      case 2:
-        return 'Y';
-      case 3:
-        return '#';
-      case 4:
-        return '*';
-      default:
-        return '?';
-    }
-  };
-
-  const actorGlyphColor = (glyphId: number) => {
-    switch (glyphId) {
-      case 1:
-        return '#4ade80';
-      case 2:
-        return '#f87171';
-      case 3:
-        return '#9ca3af';
-      case 4:
-        return '#c58a2d';
-      default:
-        return '#9ba4b0';
-    }
-  };
+  const actorGlyphChar = (glyphId: number) => glyphForActor(glyphId).char;
+  const actorGlyphColor = (glyphId: number) => glyphForActor(glyphId).color;
 
   const uiState = {
     mode: 'normal' as 'normal' | 'move',
@@ -139,7 +116,7 @@ export function startApp() {
         currentState = result.nextState;
         renderer.applyDiff(
           result.diff,
-          (terrainId) => terrainId,
+          glyphForTerrain,
           (actorId) => {
             const rend = getRenderable(currentState.actors, actorId);
             return rend?.glyphId ?? 0;
@@ -177,15 +154,18 @@ export function startApp() {
   };
 
   const refreshActors = () => {
-    const visuals = currentState.actors.actors.map((actor) => {
+    const visuals = currentState.actors.actors.flatMap((actor) => {
       const pos = getPosition(currentState.actors, actor.id);
+      if (!pos) return [];
       const rend = getRenderable(currentState.actors, actor.id);
-      return {
-        id: actor.id,
-        x: pos?.x ?? 0,
-        y: pos?.y ?? 0,
-        glyphId: rend?.glyphId ?? 0,
-      };
+      return [
+        {
+          id: actor.id,
+          x: pos.x,
+          y: pos.y,
+          glyphId: rend?.glyphId ?? 0,
+        },
+      ];
     });
     backend.setActors(visuals);
   };

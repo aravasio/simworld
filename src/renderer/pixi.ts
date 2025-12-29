@@ -3,6 +3,7 @@
 // Interacts with: renderer facade (invokes methods), Pixi library (draws).
 import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { AgentVisual, RenderBackend, TileChange, TilesetMeta } from './backend';
+import { glyphForActor } from './glyphs';
 
 export class PixiBackend implements RenderBackend {
   private app: Application | null = null;
@@ -123,20 +124,5 @@ export class PixiBackend implements RenderBackend {
     });
     sprite.x = (actor.x + 0.5) * this.cellSize;
     sprite.y = (actor.y + 0.5) * this.cellSize;
-  }
-}
-
-function glyphForActor(glyphId: number): { char: string; color: string } {
-  switch (glyphId) {
-    case 1:
-      return { char: 'X', color: '#4ade80' };
-    case 2:
-      return { char: 'Y', color: '#f87171' };
-    case 3:
-      return { char: '#', color: '#9ca3af' }; // stone
-    case 4:
-      return { char: '*', color: '#c58a2d' }; // rock material
-    default:
-      return { char: '?', color: '#9ba4b0' };
   }
 }
