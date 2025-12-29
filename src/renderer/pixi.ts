@@ -18,7 +18,7 @@ export class PixiBackend implements RenderBackend {
     const deviceScale = window.devicePixelRatio || 1;
     this.app = new Application({
       view: canvas,
-      background: '#0f0f0f',
+      background: '#0b0d10',
       antialias: true,
       resolution: deviceScale,
     });
@@ -41,12 +41,12 @@ export class PixiBackend implements RenderBackend {
     view.style.height = `${pixelHeight}px`;
 
     this.tileLayer.clear();
-    this.tileLayer.beginFill(0x111111);
+    this.tileLayer.beginFill(0x0f1319);
     this.tileLayer.drawRect(0, 0, width * this.cellSize, height * this.cellSize);
     this.tileLayer.endFill();
 
     // Draw grid lines to make cells visible.
-    this.tileLayer.lineStyle({ width: 1, color: 0x333333, alpha: 1 });
+    this.tileLayer.lineStyle({ width: 1, color: 0x1f2733, alpha: 1 });
     for (let x = 0; x <= width; x++) {
       const px = x * this.cellSize;
       this.tileLayer.moveTo(px, 0);

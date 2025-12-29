@@ -44,6 +44,35 @@ function bootstrap() {
   );
   const cursor = { x: center.x - 1, y: center.y }; // start cursor on X
   backend.setCursorPosition(cursor.x, cursor.y);
+  const inspector = {
+    name: document.getElementById('inspector-name'),
+    glyph: document.getElementById('inspector-glyph'),
+    avatar: document.getElementById('inspector-avatar'),
+    pos: document.getElementById('inspector-pos'),
+    sidebar: document.getElementById('sidebar'),
+    ui: document.getElementById('ui'),
+  };
+
+  const glyphChar = (glyphId: number) => (glyphId === 1 ? 'X' : 'Y');
+  const glyphColor = (glyphId: number) => (glyphId === 1 ? '#4ade80' : '#f87171');
+
+  const updateInspector = () => {
+    if (!inspector.name || !inspector.glyph || !inspector.pos || !inspector.avatar) return;
+    const agent = agents.agents.find((a) => a.x === cursor.x && a.y === cursor.y);
+    if (agent) {
+      inspector.name.textContent = `Agent ${agent.id}`;
+      const char = glyphChar(agent.glyphId);
+      inspector.glyph.textContent = char;
+      inspector.avatar.textContent = char;
+      (inspector.avatar as HTMLElement).style.color = glyphColor(agent.glyphId);
+    } else {
+      inspector.name.textContent = 'None';
+      inspector.glyph.textContent = '-';
+      inspector.avatar.textContent = '?';
+      (inspector.avatar as HTMLElement).style.color = '#9ca3af';
+    }
+    inspector.pos.textContent = `${cursor.x}, ${cursor.y}`;
+  };
 
   const loop = new FixedStepLoop(
     { stepMs: 1000 / 10 },
@@ -105,8 +134,10 @@ function bootstrap() {
         handled = false;
     }
     if (handled) event.preventDefault();
+    updateInspector();
   });
 
+  updateInspector();
   loop.start();
 }
 
