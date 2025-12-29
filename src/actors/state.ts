@@ -1,5 +1,5 @@
 import { ActorComponent } from './components';
-import type { Position, Renderable, Vitals } from './components';
+import type { ContentsEntry, HitPoints, LockState, Position, Renderable, Stackable, Vitals } from './components';
 
 export type ActorId = number;
 
@@ -14,6 +14,10 @@ export interface ActorsState {
   renderables: Map<ActorId, Renderable>;
   tags: Map<ActorId, Set<string>>;
   vitals: Map<ActorId, Vitals>;
+  hitPoints: Map<ActorId, HitPoints>;
+  locks: Map<ActorId, LockState>;
+  contents: Map<ActorId, ContentsEntry[]>;
+  stackables: Map<ActorId, Stackable>;
   kinds: Map<ActorId, string>;
   selectables: Map<ActorId, boolean>;
   targetables: Map<ActorId, boolean>;
@@ -29,6 +33,10 @@ export function createActors(): ActorsState {
     renderables: new Map(),
     tags: new Map(),
     vitals: new Map(),
+    hitPoints: new Map(),
+    locks: new Map(),
+    contents: new Map(),
+    stackables: new Map(),
     kinds: new Map(),
     selectables: new Map(),
     targetables: new Map(),
@@ -50,6 +58,10 @@ function addActorInternal(state: ActorsState, actor: Actor): ActorsState {
     renderables: state.renderables,
     tags: state.tags,
     vitals: state.vitals,
+    hitPoints: state.hitPoints,
+    locks: state.locks,
+    contents: state.contents,
+    stackables: state.stackables,
     kinds: state.kinds,
     selectables: state.selectables,
     targetables: state.targetables,
@@ -64,6 +76,10 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
   let nextRenderables = withActor.renderables;
   let nextTags = withActor.tags;
   let nextVitals = withActor.vitals;
+  let nextHitPoints = withActor.hitPoints;
+  let nextLocks = withActor.locks;
+  let nextContents = withActor.contents;
+  let nextStackables = withActor.stackables;
   let nextKinds = withActor.kinds;
   let nextSelectables = withActor.selectables;
   let nextTargetables = withActor.targetables;
@@ -90,6 +106,22 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
         nextVitals = nextVitals === withActor.vitals ? new Map(nextVitals) : nextVitals;
         nextVitals.set(actor.id, component.value);
         hasVitals = true;
+        break;
+      case 'hp':
+        nextHitPoints = nextHitPoints === withActor.hitPoints ? new Map(nextHitPoints) : nextHitPoints;
+        nextHitPoints.set(actor.id, component.value);
+        break;
+      case 'lock':
+        nextLocks = nextLocks === withActor.locks ? new Map(nextLocks) : nextLocks;
+        nextLocks.set(actor.id, component.value);
+        break;
+      case 'contents':
+        nextContents = nextContents === withActor.contents ? new Map(nextContents) : nextContents;
+        nextContents.set(actor.id, component.value);
+        break;
+      case 'stackable':
+        nextStackables = nextStackables === withActor.stackables ? new Map(nextStackables) : nextStackables;
+        nextStackables.set(actor.id, component.value);
         break;
       case 'kind':
         nextKinds = nextKinds === withActor.kinds ? new Map(nextKinds) : nextKinds;
@@ -126,6 +158,10 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
     renderables: nextRenderables,
     tags: nextTags,
     vitals: nextVitals,
+    hitPoints: nextHitPoints,
+    locks: nextLocks,
+    contents: nextContents,
+    stackables: nextStackables,
     kinds: nextKinds,
     selectables: nextSelectables,
     targetables: nextTargetables,
@@ -149,6 +185,14 @@ export function removeActor(state: ActorsState, id: ActorId): ActorsState {
   nextTags.delete(id);
   const nextVitals = new Map(state.vitals);
   nextVitals.delete(id);
+  const nextHitPoints = new Map(state.hitPoints);
+  nextHitPoints.delete(id);
+  const nextLocks = new Map(state.locks);
+  nextLocks.delete(id);
+  const nextContents = new Map(state.contents);
+  nextContents.delete(id);
+  const nextStackables = new Map(state.stackables);
+  nextStackables.delete(id);
   const nextKinds = new Map(state.kinds);
   nextKinds.delete(id);
   const nextSelectables = new Map(state.selectables);
@@ -166,6 +210,10 @@ export function removeActor(state: ActorsState, id: ActorId): ActorsState {
     renderables: nextRenderables,
     tags: nextTags,
     vitals: nextVitals,
+    hitPoints: nextHitPoints,
+    locks: nextLocks,
+    contents: nextContents,
+    stackables: nextStackables,
     kinds: nextKinds,
     selectables: nextSelectables,
     targetables: nextTargetables,

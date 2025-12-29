@@ -1,5 +1,5 @@
 import type { Actor, ActorId, ActorsState } from './state';
-import type { Position, Renderable, Vitals } from './components';
+import type { ContentsEntry, HitPoints, LockState, Position, Renderable, Stackable, Vitals } from './components';
 
 export function findActorAt(state: ActorsState, x: number, y: number): Actor | undefined {
   for (const actor of state.actors) {
@@ -19,6 +19,22 @@ export function getRenderable(state: ActorsState, id: ActorId): Renderable | und
 
 export function getVitals(state: ActorsState, id: ActorId): Vitals | undefined {
   return state.vitals.get(id);
+}
+
+export function getHitPoints(state: ActorsState, id: ActorId): HitPoints | undefined {
+  return state.hitPoints.get(id);
+}
+
+export function getLockState(state: ActorsState, id: ActorId): LockState | undefined {
+  return state.locks.get(id);
+}
+
+export function getContents(state: ActorsState, id: ActorId): ContentsEntry[] | undefined {
+  return state.contents.get(id);
+}
+
+export function getStackable(state: ActorsState, id: ActorId): Stackable | undefined {
+  return state.stackables.get(id);
 }
 
 export function getTags(state: ActorsState, id: ActorId): Set<string> | undefined {

@@ -33,6 +33,10 @@ export function createInspector(doc: Document): InspectorApi {
         elements.name.textContent = 'Rock';
       } else if (context.kind === 'rock-material') {
         elements.name.textContent = 'Rock Material';
+      } else if (context.kind === 'chest') {
+        elements.name.textContent = 'Chest';
+      } else if (context.kind === 'gold-coin') {
+        elements.name.textContent = 'Gold Coin';
       } else {
         elements.name.textContent = context.tags?.has('dwarf') ? `Dwarf ${context.actor.id}` : `Creature ${context.actor.id}`;
       }
@@ -43,9 +47,9 @@ export function createInspector(doc: Document): InspectorApi {
       elements.avatar.style.color = context.glyphColor(glyphId);
       if (context.vitals) {
         elements.vitals.style.display = 'block';
-        elements.hp.textContent = `${context.vitals.hp}/${context.vitals.maxHp}`;
-        elements.mp.textContent = `${context.vitals.mp}/${context.vitals.maxMp}`;
-        elements.stamina.textContent = `${context.vitals.stamina}/${context.vitals.maxStamina}`;
+        elements.hp.textContent = `${context.vitals.hitPoints.hp}/${context.vitals.hitPoints.maxHp}`;
+        elements.mp.textContent = `${context.vitals.manaPoints.mp}/${context.vitals.manaPoints.maxMp}`;
+        elements.stamina.textContent = `${context.vitals.staminaPoints.stamina}/${context.vitals.staminaPoints.maxStamina}`;
       } else {
         elements.vitals.style.display = 'none';
       }
