@@ -11,8 +11,9 @@ This file tracks engine milestones and current architecture choices. Keep it upd
 - Inspector shows info under cursor (name/glyph/position + vitals when present).
 - Move mode via Enter/E with red border cue; blocked moves show status message.
 - Move/mine commands run through sim step (command queue).
-- Input handling factored into a pure mapper (`src/input.ts`) for testability.
-- Minimal test harness in `tests/` covering pathfinding, movement, mining, and input mapping.
+- Input handling factored into a pure mapper (`src/input/input.ts`) for testability.
+- App wiring split into modules (bootstrap, input, inspector, ui, sim).
+- Minimal test harness in `tests/` covering pathfinding, movement, mining, input mapping, and world rules.
 
 ## Actor Model (Current)
 - Actor is just `{ id }`.

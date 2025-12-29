@@ -7,7 +7,7 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 - **Pure and deterministic**: state + commands + rngSeed -> nextState + nextSeed + diff; no floats; fixed tick order.
 - **Data-first**: world and agents are dense data with semantic lookups; behavior lives in sim, not in render.
 - **Narrow interfaces**: world/agents via accessors; sim consumes/produces data; renderer uses a backend interface; dependencies do not leak.
-- **Small start, open future**: one layer, no pathfinding/ECS/chunking; APIs leave room for entities, spells, more layers later.
+- **Small start, open future**: one layer, minimal pathfinding, no ECS/chunking; APIs leave room for entities, spells, more layers later.
 
 ## Data Model (What/Why)
 - **WorldState**
@@ -18,13 +18,13 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
   - Purpose: semantic meaning for each terrainTypeId.
   - Contents: entries like { name, glyphId, walkable, opaque, hp?, flammability?, moveCost?, tags? }.
   - Rationale: keeps per-tile storage lean while preserving clarity and debuggability.
-- **AgentsState** (movers only, for now)
-  - Purpose: active actors that can move/act.
-  - Contents: Agent { id, x, y, glyphId, facing?, hp?, aiState? }; collection indexed by id.
-  - Rationale: separate from world tiles so movement/behavior stays clean; designed so targeting tiles/entities later is easy.
+- **ActorsState** (unified in-world entities)
+  - Purpose: all in-world things are actors with composable components.
+  - Contents: Actor { id } plus component maps (position, renderable, vitals, tags, kind, selectability, passability, path, etc.).
+  - Rationale: removes agent/entity split; components compose behavior while keeping storage explicit and deterministic.
 - **GameState**
   - Purpose: the whole sim snapshot.
-  - Contents: { world: WorldState, agents: AgentsState, tick: number }.
+  - Contents: { world: WorldState, actors: ActorsState, tick: number, nextActorId: number }.
   - Rationale: one object to pass through pure functions; easy to serialize/inspect.
 - **RngSeed**
   - Purpose: explicit deterministic randomness.
@@ -33,10 +33,10 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 
 ## Commands and Mutations (What/Why)
 - **Commands** (inputs)
-  - Examples: Move { agentId, dir }, Wait { agentId }. Future: CastSpell, Attack.
+  - Examples: Move { actorId, dir }, MoveTo { actorId, x, y }, Mine { actorId }, Wait { actorId }.
   - Rationale: explicit intents from player/AI; ordered processing for determinism.
 - **Mutations** (state changes)
-  - Examples: AgentMoved { agentId, from, to }, AgentDamaged { agentId, amount }, TileChanged { x, y, terrainTypeId?, flagsMask?, flagsOp }.
+  - Examples: ActorMoved { actorId, from, to }, ActorAdded/Removed, PathSet, TileChanged { x, y, terrainTypeId?, flagsMask?, flagsOp }.
   - Rationale: make state transitions data; testable; easy to log/replay.
 
 ## Simulation Step (What/Why)
@@ -44,7 +44,7 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 - Phases:
   1) Derive Mutation[] from commands + AI/random (advancing seed).
   2) Apply mutations to produce nextState (copy-on-write; reuse buffers when untouched).
-  3) Build diff for renderer (tick, agentMoves, tileChanges, agentsAdded/Removed).
+  3) Build diff for renderer (tick, actorMoves, tileChanges, actorsAdded/Removed).
 - Rationale: keeps sim pure, deterministic, inspectable; diff avoids re-reading full state for render.
 
 ## Renderer (What/Why)
@@ -72,16 +72,19 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 - Rationale: no framework; keeps UI separate from sim.
 
 ## Project Structure (What/Why each file)
-- src/world.ts: WorldState, terrain access/update helpers; enforces narrow access.
-- src/agents.ts: AgentsState helpers; manages movers without exposing layout.
-- src/rng.ts: seeded RNG utilities; explicit seed threading.
-- src/sim.ts: command/mutation types and step; core deterministic logic.
+- src/world/: WorldState + queries + mutation helpers; enforces narrow access.
+- src/actors/: Actor state, component catalog, selectors, mutations.
+- src/sim/: command/mutation types, step, and system helpers (movement/mining/pathing).
+- src/input/: key mapping (pure) and input types.
+- src/inspector/: DOM inspector wiring (display only).
+- src/ui/: debug UI wiring (loop controls + tick display).
 - src/renderer/renderer.ts: renderer interface, diff handling; engine-facing view layer.
 - src/renderer/backend.ts: RenderBackend interface; abstraction boundary for dependencies.
 - src/renderer/pixi.ts: Pixi implementation of RenderBackend; dependency kept contained.
 - src/loop.ts: fixed-step loop implementation; time and controls glue.
-- src/ui.ts: debug UI wiring; DOM-only.
-- src/main.ts: bootstrap; wires everything together.
+- src/bootstrap/: initial world + actor setup helpers.
+- src/app.ts: runtime wiring and orchestration.
+- src/main.ts: minimal entry point.
 
 ## Design Rationale Summary
 - Determinism: fixed step, integer math, explicit RNG seed, ordered command handling.
