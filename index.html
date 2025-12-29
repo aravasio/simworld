@@ -179,6 +179,16 @@
         color: #c9cdd4;
         margin-right: 0.75rem;
       }
+      #pause-hint {
+        color: var(--muted);
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+      }
+      #tick {
+        color: #c9cdd4;
+        font-family: 'Courier New', monospace;
+        letter-spacing: 0.5px;
+      }
       #status-message {
         margin-top: 0.35rem;
         color: #f87171;
@@ -192,14 +202,12 @@
   <body>
     <!-- Minimal debug UI controls -->
     <div id="ui">
-      <button id="pause">Pause</button>
-      <button id="resume">Resume</button>
-      <button id="step">Step</button>
       <label>
-        Speed
-        <input id="speed" type="number" min="0.1" step="0.1" value="1" />
+        Speed (x0.1)
+        <input id="speed" type="number" min="1" step="1" value="1" />
       </label>
       <span id="tick">Tick: 0</span>
+      <span id="pause-hint">Space: Pause/Resume · Ctrl+Space: Step</span>
     </div>
 
     <div id="shell">

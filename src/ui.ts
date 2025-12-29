@@ -11,18 +11,12 @@ export interface DebugUIOptions {
 }
 
 export function createDebugUI(opts: DebugUIOptions) {
-  const pauseBtn = document.getElementById('pause');
-  const resumeBtn = document.getElementById('resume');
-  const stepBtn = document.getElementById('step');
   const speedInput = document.getElementById('speed') as HTMLInputElement | null;
   const tickLabel = document.getElementById('tick');
 
-  pauseBtn?.addEventListener('click', () => opts.loop.pause());
-  resumeBtn?.addEventListener('click', () => opts.loop.resume());
-  stepBtn?.addEventListener('click', () => opts.loop.stepOnce());
   speedInput?.addEventListener('change', () => {
     const v = Number(speedInput.value);
-    if (!Number.isNaN(v) && v > 0) opts.loop.setSpeed(v);
+    if (!Number.isNaN(v) && v > 0) opts.loop.setSpeed(v / 10);
   });
 
   const updateTick = () => {

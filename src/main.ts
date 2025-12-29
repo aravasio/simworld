@@ -4,8 +4,6 @@ import { createWorld, TileFlag, inBounds, isWalkable } from './world';
 import {
   createActors,
   createActor,
-  removeActor,
-  updatePosition,
   ActorsState,
   Actor,
   getPosition,
@@ -22,8 +20,8 @@ import { createDebugUI } from './ui';
 import { FixedStepLoop } from './loop';
 import { Renderer } from './renderer/renderer';
 import { PixiBackend } from './renderer/pixi';
-import { RngSeed, nextInt } from './rng';
-import { GameState } from './sim';
+import { RngSeed } from './rng';
+import { Command, GameState } from './sim';
 
 function bootstrap() {
   const canvas = document.getElementById('viewport') as HTMLCanvasElement;
@@ -72,9 +70,10 @@ function bootstrap() {
     ActorComponents.targetable(true),
   ]);
 
-  const initialState: GameState = { world, actors, tick: 0 };
+  const initialState: GameState = { world, actors, tick: 0, nextActorId: nextActorId };
   let rngSeed: RngSeed = 12345;
-  let dropSeed: RngSeed = 7777;
+  const commandQueue: Command[] = [];
+  let currentState: GameState = initialState;
 
   const backend = new PixiBackend();
   const renderer = new Renderer({
@@ -84,9 +83,9 @@ function bootstrap() {
   });
 
   renderer.setWorld(world, (terrainId) => terrainId);
-  const renderables = Array.from(initialState.actors.actors).map((actor) => {
-    const pos = getPosition(initialState.actors, actor.id);
-    const rend = getRenderable(initialState.actors, actor.id);
+  const renderables = Array.from(currentState.actors.actors).map((actor) => {
+    const pos = getPosition(currentState.actors, actor.id);
+    const rend = getRenderable(currentState.actors, actor.id);
     return {
       id: actor.id,
       x: pos?.x ?? 0,
@@ -152,24 +151,24 @@ function bootstrap() {
 
   const updateInspector = () => {
     if (!inspector.name || !inspector.glyph || !inspector.pos || !inspector.avatar || !inspector.hp || !inspector.mp || !inspector.stamina || !inspector.vitals) return;
-    const actor = findActorAt(actors, cursor.x, cursor.y);
+    const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
     if (actor) {
-      const kind = getKind(actors, actor.id);
+      const kind = getKind(currentState.actors, actor.id);
       if (kind === 'rock') {
         inspector.name.textContent = 'Rock';
       } else if (kind === 'rock-material') {
         inspector.name.textContent = 'Rock Material';
       } else {
-        const tags = getTags(actors, actor.id);
+        const tags = getTags(currentState.actors, actor.id);
         inspector.name.textContent = tags?.has('dwarf') ? `Dwarf ${actor.id}` : `Creature ${actor.id}`;
       }
-      const rend = getRenderable(actors, actor.id);
+      const rend = getRenderable(currentState.actors, actor.id);
       const glyphId = rend?.glyphId ?? 0;
       const char = actorGlyphChar(glyphId);
       inspector.glyph.textContent = char;
       inspector.avatar.textContent = char;
       (inspector.avatar as HTMLElement).style.color = actorGlyphColor(glyphId);
-      const vitals = getVitals(actors, actor.id);
+      const vitals = getVitals(currentState.actors, actor.id);
       if (vitals) {
         inspector.vitals.style.display = 'block';
         inspector.hp.textContent = `${vitals.hp}/${vitals.maxHp}`;
@@ -192,6 +191,7 @@ function bootstrap() {
     mode: 'normal' as 'normal' | 'move',
     selectedActorId: null as number | null,
   };
+  let isPaused = true;
 
   let statusTimer: number | null = null;
   const setStatus = (message: string) => {
@@ -205,24 +205,24 @@ function bootstrap() {
   };
 
   const isBlocked = (x: number, y: number, ignoreId?: number) => {
-    for (const actor of actors.actors) {
+    for (const actor of currentState.actors.actors) {
       if (actor.id === ignoreId) continue;
-      const pos = getPosition(actors, actor.id);
+      const pos = getPosition(currentState.actors, actor.id);
       if (!pos || pos.x !== x || pos.y !== y) continue;
-      const pass = getPassability(actors, actor.id);
+      const pass = getPassability(currentState.actors, actor.id);
       if (!pass || !pass.allowsPassThrough) return true;
     }
     return false;
   };
 
   const getAdjacentTargetable = (x: number, y: number): Actor | undefined => {
-    for (const actor of actors.actors) {
-      const pos = getPosition(actors, actor.id);
+    for (const actor of currentState.actors.actors) {
+      const pos = getPosition(currentState.actors, actor.id);
       if (!pos) continue;
       const dx = Math.abs(pos.x - x);
       const dy = Math.abs(pos.y - y);
       if (dx === 0 && dy === 0) continue;
-      if (dx <= 1 && dy <= 1 && isTargetable(actors, actor.id)) {
+      if (dx <= 1 && dy <= 1 && isTargetable(currentState.actors, actor.id)) {
         return actor; // Target priority: first match in actor list.
       }
     }
@@ -231,28 +231,26 @@ function bootstrap() {
 
   const updateActionHints = () => {
     if (!inspector.actionHints) return;
-    const actor = findActorAt(actors, cursor.x, cursor.y);
+    const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
     if (!actor) {
       inspector.actionHints.style.display = 'none';
       return;
     }
-    if (isSelectable(actors, actor.id)) {
+    if (isSelectable(currentState.actors, actor.id)) {
       inspector.actionHints.style.display = 'block';
-      const pos = getPosition(actors, actor.id);
+      const pos = getPosition(currentState.actors, actor.id);
       const hasTarget = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
-      const moveLabel = uiState.mode === 'move' ? 'Space: Confirm Move' : 'Space: Move';
+      const moveLabel = uiState.mode === 'move' ? 'Enter: Confirm Move' : 'Enter: Move';
       inspector.actionHints.innerHTML = [
         `<span class="action">${moveLabel}</span>`,
         hasTarget ? '<span class="action">I: Mine</span>' : '<span class="action">I: Mine (adjacent rock)</span>',
         hasTarget ? '<span class="action">O: Fight</span>' : '<span class="action">O: Fight (adjacent target)</span>',
-        '<span class="action">J/K/L: Target</span>',
         '<span class="action">Esc: Cancel Move</span>',
       ].join(' ');
       return;
     }
-    if (isTargetable(actors, actor.id)) {
-      inspector.actionHints.style.display = 'block';
-      inspector.actionHints.innerHTML = ['<span class="action">J/K/L: Target</span>'].join(' ');
+    if (isTargetable(currentState.actors, actor.id)) {
+      inspector.actionHints.style.display = 'none';
       return;
     }
     inspector.actionHints.style.display = 'none';
@@ -267,16 +265,25 @@ function bootstrap() {
     initialState,
     rngSeed,
     {
-      getCommands: () => [],
+      getCommands: () => {
+        if (!commandQueue.length) return [];
+        const cmds = commandQueue.slice();
+        commandQueue.length = 0;
+        return cmds;
+      },
       onAfterStep: (result) => {
+        currentState = result.nextState;
         renderer.applyDiff(
           result.diff,
           (terrainId) => terrainId,
           (actorId) => {
-            const rend = getRenderable(actors, actorId);
+            const rend = getRenderable(currentState.actors, actorId);
             return rend?.glyphId ?? 0;
           }
         );
+        refreshActors();
+        updateInspector();
+        updateActionHints();
       },
       onRender: () => renderer.draw(),
     }
@@ -306,17 +313,16 @@ function bootstrap() {
       setStatus('Blocked: cannot move there.');
       return;
     }
-    actors = updatePosition(actors, uiState.selectedActorId, { x: cursor.x, y: cursor.y });
-    refreshActors();
-    updateInspector();
+    commandQueue.push({ kind: 'moveTo', actorId: uiState.selectedActorId, x: cursor.x, y: cursor.y });
     uiState.mode = 'normal';
     updateMoveModeUI();
+    // loop.stepOnce();
   };
 
   const refreshActors = () => {
-    const visuals = actors.actors.map((actor) => {
-      const pos = getPosition(actors, actor.id);
-      const rend = getRenderable(actors, actor.id);
+    const visuals = currentState.actors.actors.map((actor) => {
+      const pos = getPosition(currentState.actors, actor.id);
+      const rend = getRenderable(currentState.actors, actor.id);
       return {
         id: actor.id,
         x: pos?.x ?? 0,
@@ -327,25 +333,9 @@ function bootstrap() {
     backend.setActors(visuals);
   };
 
-  const mineRockAtTarget = (targetId: number) => {
-    const kind = getKind(actors, targetId);
-    const pos = getPosition(actors, targetId);
-    if (kind !== 'rock' || !pos) return;
-    actors = removeActor(actors, targetId);
-    const roll = nextInt(dropSeed, 5);
-    dropSeed = roll.nextSeed;
-    const count = roll.value + 1;
-    for (let i = 0; i < count; i++) {
-      actors = createActor(actors, { id: nextActorId++ }, [
-        ActorComponents.kind('rock-material'),
-        ActorComponents.position({ x: pos.x, y: pos.y }),
-        ActorComponents.renderable({ glyphId: 4 }),
-        ActorComponents.tags(['item']),
-        ActorComponents.passability({ allowsPassThrough: true }),
-      ]);
-    }
-    refreshActors();
-    updateInspector();
+  const queueMine = (actorId: number) => {
+    commandQueue.push({ kind: 'mine', actorId });
+    // loop.stepOnce();
   };
 
   window.addEventListener('keydown', (event) => {
@@ -355,6 +345,24 @@ function bootstrap() {
         if (uiState.mode === 'move') {
           uiState.mode = 'normal';
           updateMoveModeUI();
+        }
+        break;
+      case ' ':
+        if (event.ctrlKey) {
+          if (isPaused) {
+            loop.stepOnce();
+          } else {
+            loop.pause();
+            isPaused = true;
+          }
+        } else {
+          if (isPaused) {
+            loop.resume();
+            isPaused = false;
+          } else {
+            loop.pause();
+            isPaused = true;
+          }
         }
         break;
       case 'ArrowUp':
@@ -377,12 +385,14 @@ function bootstrap() {
       case 'D':
         moveCursor(1, 0);
         break;
-      case ' ':
+      case 'Enter':
+      case 'e':
+      case 'E':
         if (uiState.mode === 'move') {
           confirmMoveToCursor();
         } else {
-          const actor = findActorAt(actors, cursor.x, cursor.y);
-          if (actor && isSelectable(actors, actor.id)) {
+          const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
+          if (actor && isSelectable(currentState.actors, actor.id)) {
             uiState.selectedActorId = actor.id;
             uiState.mode = 'move';
             updateMoveModeUI();
@@ -391,20 +401,20 @@ function bootstrap() {
         break;
       case 'i':
       case 'I': {
-        const actor = findActorAt(actors, cursor.x, cursor.y);
-        if (!actor || !isSelectable(actors, actor.id)) break;
-        const pos = getPosition(actors, actor.id);
+        const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
+        if (!actor || !isSelectable(currentState.actors, actor.id)) break;
+        const pos = getPosition(currentState.actors, actor.id);
         const target = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
         if (target) {
-          mineRockAtTarget(target.id);
+          queueMine(actor.id);
         }
         break;
       }
       case 'o':
       case 'O': {
-        const actor = findActorAt(actors, cursor.x, cursor.y);
-        if (!actor || !isSelectable(actors, actor.id)) break;
-        const pos = getPosition(actors, actor.id);
+        const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
+        if (!actor || !isSelectable(currentState.actors, actor.id)) break;
+        const pos = getPosition(currentState.actors, actor.id);
         const target = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
         if (target) {
           // Placeholder: fight not implemented yet.
@@ -417,7 +427,7 @@ function bootstrap() {
       case 'J':
       case 'K':
       case 'L':
-        // Reserved for target confirmations; no-op for now.
+        handled = false;
         break;
       default:
         handled = false;

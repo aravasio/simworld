@@ -8,7 +8,9 @@ This file tracks engine milestones and current architecture choices. Keep it upd
 - Pixi renderer draws a fixed-size grid, glyphs, and cursor overlay.
 - Actors model unified: all in-world things are actors with component maps.
 - Actor components are created via the `ActorComponents` catalog.
-- Inspector shows info under cursor (name/glyph/position).
+- Inspector shows info under cursor (name/glyph/position + vitals when present).
+- Move mode via Space with red border cue; blocked moves show status message.
+- Move/mine commands run through sim step (command queue).
 
 ## Actor Model (Current)
 - Actor is just `{ id }`.
@@ -30,8 +32,7 @@ This file tracks engine milestones and current architecture choices. Keep it upd
 
 ## Open Questions / Next Steps
 - Decide on validation strategy for component rules (e.g., creature requires vitals).
-- Define walkability/solidity rules using tags or a dedicated component.
+- Define walkability/solidity rules using tags or a dedicated component (passability exists but is ad-hoc).
 - Decide render ordering for stacked actors (items vs. rocks vs. creatures).
-- Move mining into sim step with commands/mutations (remove debug key).
 - Strengthen FP guarantees by ensuring component maps are always copied on write.
 - Consider removing `let` state in `src/main.ts` in favor of functional pipelines.
