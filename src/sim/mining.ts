@@ -9,13 +9,13 @@ export function maybeQueueMine(
   actorId: ActorId,
   nextActorId: number,
   seed: RngSeed
-): { nextActorId: number; nextSeed: RngSeed } {
+): { nextActorId: number; nextSeed: RngSeed; status: 'ok' | 'error'; reason?: string } {
   const pos = getPosition(state.actors, actorId);
-  if (!pos) return { nextActorId, nextSeed: seed };
+  if (!pos) return { nextActorId, nextSeed: seed, status: 'error', reason: 'missing_position' };
   const target = findAdjacentTargetable(state, pos.x, pos.y);
-  if (!target) return { nextActorId, nextSeed: seed };
+  if (!target) return { nextActorId, nextSeed: seed, status: 'error', reason: 'no_target' };
   const kind = getKind(state.actors, target.id);
-  if (kind !== 'rock') return { nextActorId, nextSeed: seed };
+  if (kind !== 'rock') return { nextActorId, nextSeed: seed, status: 'error', reason: 'not_mineable' };
   mutations.push({ kind: 'actorRemoved', actorId: target.id });
   const roll = nextInt(seed, 5);
   const count = roll.value + 1;
@@ -23,7 +23,7 @@ export function maybeQueueMine(
   for (let i = 0; i < count; i++) {
     mutations.push({ kind: 'actorAdded', actorId: idCounter++, x: target.x, y: target.y, glyphId: 4 });
   }
-  return { nextActorId: idCounter, nextSeed: roll.nextSeed };
+  return { nextActorId: idCounter, nextSeed: roll.nextSeed, status: 'ok' };
 }
 
 export function findAdjacentTargetable(state: GameState, x: number, y: number): { id: ActorId; x: number; y: number } | null {

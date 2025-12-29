@@ -1,28 +1,51 @@
-import { ActorComponents, createActor, removeActor, setPath, updatePosition } from '../actors';
+import { ActorComponents, createActor, removeActor, setPath, updatePosition, getPosition } from '../actors';
 import { nextInt, RngSeed } from '../rng';
 import { Pathfinding } from '../pathfinding';
-import type { Command, GameState, Mutation, SimConfig, SimDiff, StepResult } from './types';
-import { maybeQueueMove, maybeQueueMoveTo } from './movement';
+import type { Command, GameState, Mutation, SimConfig, SimDiff, StepResult, CommandResult } from './types';
+import { maybeQueueMove, getMoveFailureReason, planMoveTo, getDirOffset } from './movement';
 import { maybeQueueMine } from './mining';
 import { queuePathSteps } from './pathing';
 
 export function step(state: GameState, commands: Command[], rngSeed: RngSeed, config: SimConfig = {}): StepResult {
   const mutations: Mutation[] = [];
+  const commandResults: CommandResult[] = [];
   let seed = rngSeed;
   let nextActorId = state.nextActorId;
   const pathfinder = config.pathfinder ?? Pathfinding.bfs;
 
   for (const cmd of commands) {
     if (cmd.kind === 'move') {
-      maybeQueueMove(mutations, state, cmd.actorId, cmd.dir);
+      const pos = getPosition(state.actors, cmd.actorId);
+      if (!pos) {
+        commandResults.push({ kind: 'move', actorId: cmd.actorId, status: 'error', reason: 'missing_position' });
+        continue;
+      }
+      const { dx, dy } = getDirOffset(cmd.dir);
+      const nx = pos.x + dx;
+      const ny = pos.y + dy;
+      const failure = getMoveFailureReason(state, cmd.actorId, nx, ny);
+      if (failure) {
+        commandResults.push({ kind: 'move', actorId: cmd.actorId, status: 'error', reason: failure });
+      } else {
+        maybeQueueMove(mutations, state, cmd.actorId, cmd.dir);
+        commandResults.push({ kind: 'move', actorId: cmd.actorId, status: 'ok' });
+      }
     } else if (cmd.kind === 'moveTo') {
-      const result = maybeQueueMoveTo(mutations, state, cmd.actorId, cmd.x, cmd.y, pathfinder, nextActorId, seed);
-      nextActorId = result.nextActorId;
-      seed = result.nextSeed;
+      const plan = planMoveTo(state, cmd.actorId, cmd.x, cmd.y, pathfinder);
+      if (plan.status === 'error') {
+        commandResults.push({ kind: 'moveTo', actorId: cmd.actorId, status: 'error', reason: plan.reason });
+      } else {
+        const steps = plan.path.slice(1);
+        mutations.push({ kind: 'pathSet', actorId: cmd.actorId, path: steps });
+        commandResults.push({ kind: 'moveTo', actorId: cmd.actorId, status: 'ok' });
+      }
     } else if (cmd.kind === 'mine') {
       const result = maybeQueueMine(mutations, state, cmd.actorId, nextActorId, seed);
       nextActorId = result.nextActorId;
       seed = result.nextSeed;
+      commandResults.push({ kind: 'mine', actorId: cmd.actorId, status: result.status, reason: result.reason });
+    } else if (cmd.kind === 'wait') {
+      commandResults.push({ kind: 'wait', actorId: cmd.actorId, status: 'ok' });
     }
   }
 
@@ -75,6 +98,7 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
     actorMoves,
     actorsAdded,
     actorsRemoved,
+    commandResults,
     tileChanges: [],
   };
 

@@ -12,6 +12,12 @@ const DIRS: Record<'N' | 'S' | 'E' | 'W', { dx: number; dy: number }> = {
   W: { dx: -1, dy: 0 },
 };
 
+export type MoveFailureReason = 'out_of_bounds' | 'not_walkable' | 'blocked' | 'no_path' | 'missing_position';
+
+export function getDirOffset(dir: 'N' | 'S' | 'E' | 'W') {
+  return DIRS[dir];
+}
+
 export function maybeQueueMove(mutations: Mutation[], state: GameState, actorId: ActorId, dir: 'N' | 'S' | 'E' | 'W') {
   const pos = getPosition(state.actors, actorId);
   if (!pos) return;
@@ -27,18 +33,17 @@ export function maybeQueueMove(mutations: Mutation[], state: GameState, actorId:
   });
 }
 
-export function maybeQueueMoveTo(
-  mutations: Mutation[],
+export function planMoveTo(
   state: GameState,
   actorId: ActorId,
   x: number,
   y: number,
-  pathfinder: PathfindingFn,
-  nextActorId: number,
-  seed: RngSeed
-): { nextActorId: number; nextSeed: RngSeed } {
+  pathfinder: PathfindingFn
+): { status: 'ok'; path: { x: number; y: number }[] } | { status: 'error'; reason: MoveFailureReason } {
   const pos = getPosition(state.actors, actorId);
-  if (!pos) return { nextActorId, nextSeed: seed };
+  if (!pos) return { status: 'error', reason: 'missing_position' };
+  const failure = getMoveFailureReason(state, actorId, x, y);
+  if (failure) return { status: 'error', reason: failure };
   const path = pathfinder(
     { x: pos.x, y: pos.y },
     { x, y },
@@ -48,16 +53,21 @@ export function maybeQueueMoveTo(
       isBlocked: (qx, qy) => isBlockedAt(state, actorId, qx, qy),
     }
   );
-  if (!path || path.length <= 1) return { nextActorId, nextSeed: seed };
-  const steps = path.slice(1);
-  mutations.push({ kind: 'pathSet', actorId, path: steps });
-  return { nextActorId, nextSeed: seed };
+  if (!path || path.length <= 1) return { status: 'error', reason: 'no_path' };
+  return { status: 'ok', path };
 }
 
 export function canMoveTo(state: GameState, actorId: ActorId, x: number, y: number): boolean {
   if (!inBounds(state.world, x, y)) return false;
   if (!isWalkable(state.world, x, y)) return false;
   return !isBlockedAt(state, actorId, x, y);
+}
+
+export function getMoveFailureReason(state: GameState, actorId: ActorId, x: number, y: number): MoveFailureReason | undefined {
+  if (!inBounds(state.world, x, y)) return 'out_of_bounds';
+  if (!isWalkable(state.world, x, y)) return 'not_walkable';
+  if (isBlockedAt(state, actorId, x, y)) return 'blocked';
+  return undefined;
 }
 
 export function isBlockedAt(state: GameState, actorId: ActorId, x: number, y: number): boolean {

@@ -27,8 +27,15 @@ export interface SimDiff {
   actorMoves: Array<{ actorId: ActorId; from: { x: number; y: number }; to: { x: number; y: number } }>;
   actorsAdded: Array<{ actorId: ActorId; x: number; y: number; glyphId: number }>;
   actorsRemoved: ActorId[];
+  commandResults: CommandResult[];
   tileChanges: Array<{ x: number; y: number; terrainTypeId?: number; flagsMask?: number; flagsOp?: 'set' | 'clear' }>;
 }
+
+export type CommandResult =
+  | { kind: 'move'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
+  | { kind: 'moveTo'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
+  | { kind: 'mine'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
+  | { kind: 'wait'; actorId: ActorId; status: 'ok' };
 
 export interface StepResult {
   nextState: GameState;

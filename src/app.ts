@@ -6,7 +6,7 @@ import { PixiBackend } from './renderer/pixi';
 import { RngSeed } from './rng';
 import { createInspector } from './inspector';
 import { interpretKeyInput } from './input';
-import { GameState, Command, canMoveTo, findAdjacentTargetable } from './sim';
+import { GameState, Command, CommandResult, findAdjacentTargetable } from './sim';
 import {
   findActorAt,
   getPosition,
@@ -89,6 +89,7 @@ export function startApp() {
   const uiState = {
     mode: 'normal' as 'normal' | 'move',
     selectedActorId: null as number | null,
+    pendingMoveActorId: null as number | null,
   };
   let isPaused = true;
 
@@ -144,6 +145,7 @@ export function startApp() {
             return rend?.glyphId ?? 0;
           }
         );
+        handleCommandResults(result.diff.commandResults);
         refreshActors();
         updateInspector();
         updateActionHints();
@@ -170,13 +172,8 @@ export function startApp() {
   const confirmMoveToCursor = () => {
     if (uiState.selectedActorId === null) return;
     if (!inBounds(world, cursor.x, cursor.y)) return;
-    if (!canMoveTo(currentState, uiState.selectedActorId, cursor.x, cursor.y)) {
-      inspector.setStatus('Blocked: cannot move there.');
-      return;
-    }
     commandQueue.push({ kind: 'moveTo', actorId: uiState.selectedActorId, x: cursor.x, y: cursor.y });
-    uiState.mode = 'normal';
-    updateMoveModeUI();
+    uiState.pendingMoveActorId = uiState.selectedActorId;
   };
 
   const refreshActors = () => {
@@ -195,6 +192,31 @@ export function startApp() {
 
   const queueMine = (actorId: number) => {
     commandQueue.push({ kind: 'mine', actorId });
+  };
+
+  const handleCommandResults = (results: CommandResult[]) => {
+    for (const result of results) {
+      if (result.status !== 'error') {
+        if (result.kind === 'moveTo' && uiState.pendingMoveActorId === result.actorId) {
+          uiState.mode = 'normal';
+          uiState.pendingMoveActorId = null;
+          updateMoveModeUI();
+        }
+        continue;
+      }
+      const reason = result.reason ?? 'unknown';
+      let message = 'Action rejected.';
+      if (reason === 'out_of_bounds') message = 'Blocked: out of bounds.';
+      if (reason === 'not_walkable') message = 'Blocked: terrain not walkable.';
+      if (reason === 'blocked') message = 'Blocked: occupied.';
+      if (reason === 'no_path') message = 'Blocked: no path.';
+      if (reason === 'no_target') message = 'Mine: no target adjacent.';
+      if (reason === 'not_mineable') message = 'Mine: invalid target.';
+      inspector.setStatus(message);
+      if (result.kind === 'moveTo' && uiState.pendingMoveActorId === result.actorId) {
+        uiState.pendingMoveActorId = null;
+      }
+    }
   };
 
   window.addEventListener('keydown', (event) => {

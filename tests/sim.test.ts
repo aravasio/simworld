@@ -128,3 +128,25 @@ test('mine does nothing when no adjacent target exists', () => {
   assertEqual(result.diff.actorsRemoved.length, 0, 'no rock should be removed');
   assertEqual(result.diff.actorsAdded.length, 0, 'no drops should be added');
 });
+
+test('moveTo reports error and does not change state when blocked', () => {
+  const world = buildWorld(3, 3);
+  let actors = createActors();
+  actors = createActor(actors, { id: 1 }, [ActorComponents.position({ x: 1, y: 1 })]);
+  actors = createActor(actors, { id: 2 }, [
+    ActorComponents.position({ x: 2, y: 1 }),
+    ActorComponents.passability({ allowsPassThrough: false }),
+  ]);
+
+  const state: GameState = { world, actors, tick: 0, nextActorId: 10 };
+  const result = step(state, [{ kind: 'moveTo', actorId: 1, x: 2, y: 1 }], 1);
+
+  assertEqual(result.diff.commandResults.length, 1, 'command result should be reported');
+  const cmd = result.diff.commandResults[0];
+  assertEqual(cmd.kind, 'moveTo', 'command kind');
+  assertEqual(cmd.status, 'error', 'command status');
+  assertEqual(cmd.reason, 'blocked', 'blocked reason');
+  assertPosition(getPosition(result.nextState.actors, 1), 1, 1, 'blocked moveTo should not move actor');
+  const path = getPath(result.nextState.actors, 1);
+  assert(!path || path.length === 0, 'blocked moveTo should not store a path');
+});
