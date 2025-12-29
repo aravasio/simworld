@@ -16,6 +16,11 @@ npm test
 - **Determinism checks**: same state + commands + seed must produce the same diff.
 - **Gameplay rules**: mining adjacency (including diagonals) and drop range.
 
+## Structure
+- `harness.ts` provides a tiny test registry and shared helpers.
+- `*.test.ts` files register tests by area (sim, input, world, pathfinding).
+- `run-tests.ts` imports all tests and runs them.
+
 ## Strategy (later)
 - Add larger world fixtures and verify config consistency (bounds, walkable flags, spawn rules).
 - Add integration "scenario" tests: command scripts + golden snapshots of positions/ticks.
