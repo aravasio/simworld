@@ -7,10 +7,12 @@ import { AgentVisual, RenderBackend, TileChange, TilesetMeta } from './backend';
 export class PixiBackend implements RenderBackend {
   private app: Application | null = null;
   private tileLayer: Graphics | null = null;
+  private entityLayer: Container | null = null;
   private agentLayer: Container | null = null;
   private cellSize = 48; // fixed pixel size per cell
   private gridWidth = 0;
   private gridHeight = 0;
+  private entitySprites = new Map<number, Text>();
   private agentSprites = new Map<number, Text>();
   private cursor: Graphics | null = null;
 
@@ -23,9 +25,10 @@ export class PixiBackend implements RenderBackend {
       resolution: deviceScale,
     });
     this.tileLayer = new Graphics();
+    this.entityLayer = new Container();
     this.agentLayer = new Container();
     this.cursor = new Graphics();
-    this.app.stage.addChild(this.tileLayer, this.agentLayer, this.cursor);
+    this.app.stage.addChild(this.tileLayer, this.entityLayer, this.agentLayer, this.cursor);
   }
 
   setStaticTiles(width: number, height: number, _tiles: number[]): void {
@@ -63,6 +66,13 @@ export class PixiBackend implements RenderBackend {
     // Tiles are static colored grid for now; tile changes would redraw tiles if implemented.
   }
 
+  setEntities(entities: AgentVisual[]): void {
+    if (!this.entityLayer) return;
+    this.entityLayer.removeChildren();
+    this.entitySprites.clear();
+    entities.forEach((e) => this.addOrUpdateEntity(e));
+  }
+
   setAgents(agents: AgentVisual[]): void {
     if (!this.agentLayer) return;
     this.agentLayer.removeChildren();
@@ -89,9 +99,40 @@ export class PixiBackend implements RenderBackend {
     this.app?.destroy(true, { children: true, texture: true, baseTexture: true });
     this.agentSprites.clear();
     this.tileLayer = null;
+    this.entityLayer = null;
     this.agentLayer = null;
     this.cursor = null;
     this.app = null;
+  }
+
+  private addOrUpdateEntity(entity: AgentVisual) {
+    if (!this.entityLayer) return;
+    let sprite = this.entitySprites.get(entity.id);
+    if (!sprite) {
+      const { char, color } = glyphForEntity(entity.glyphId);
+      sprite = new Text(
+        char,
+        new TextStyle({
+          fill: color,
+          fontFamily: 'monospace',
+          fontSize: Math.floor(this.cellSize * 0.55),
+          fontWeight: 'bold',
+        })
+      );
+      sprite.anchor.set(0.5);
+      this.entityLayer.addChild(sprite);
+      this.entitySprites.set(entity.id, sprite);
+    }
+    const { char, color } = glyphForEntity(entity.glyphId);
+    sprite.text = char;
+    sprite.style = new TextStyle({
+      fill: color,
+      fontFamily: 'monospace',
+      fontSize: Math.floor(this.cellSize * 0.55),
+      fontWeight: 'bold',
+    });
+    sprite.x = (entity.x + 0.5) * this.cellSize;
+    sprite.y = (entity.y + 0.5) * this.cellSize;
   }
 
   private addOrUpdateAgent(agent: AgentVisual) {
@@ -121,5 +162,16 @@ export class PixiBackend implements RenderBackend {
     });
     sprite.x = (agent.x + 0.5) * this.cellSize;
     sprite.y = (agent.y + 0.5) * this.cellSize;
+  }
+}
+
+function glyphForEntity(glyphId: number): { char: string; color: string } {
+  switch (glyphId) {
+    case 3:
+      return { char: '#', color: '#9ca3af' }; // stone
+    case 4:
+      return { char: '*', color: '#c58a2d' }; // rock material
+    default:
+      return { char: '?', color: '#9ba4b0' };
   }
 }

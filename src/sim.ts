@@ -3,12 +3,14 @@
 // Interacts with: world/agents (reads and mutates via helpers), rng (advances seed), renderer (consumes diff).
 
 import { AgentsState, AgentId, moveAgent } from './agents';
+import { EntitiesState } from './entities';
 import { WorldState, inBounds, isWalkable } from './world';
 import { RngSeed, nextInt } from './rng';
 
 export interface GameState {
   world: WorldState;
   agents: AgentsState;
+  entities: EntitiesState;
   tick: number;
 }
 
@@ -78,6 +80,7 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
   const nextState: GameState = {
     world: state.world,
     agents: nextAgents,
+    entities: state.entities,
     tick: state.tick + 1,
   };
 

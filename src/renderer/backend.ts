@@ -24,6 +24,7 @@ export interface RenderBackend {
   init(canvas: HTMLCanvasElement, tileset: TilesetMeta): Promise<void>;
   setStaticTiles(width: number, height: number, tiles: number[]): void; // glyphId per tile
   applyTileChanges(changes: TileChange[]): void;
+  setEntities(entities: AgentVisual[]): void;
   setAgents(agents: AgentVisual[]): void;
   applyAgentMoves(moves: Array<{ id: number; x: number; y: number; glyphId?: number }>): void;
   setCursorPosition(x: number, y: number): void;
