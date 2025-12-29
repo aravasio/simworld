@@ -1,16 +1,21 @@
 // Entry point wiring: boots the world/agents, renderer, loop, and debug UI.
 // Purpose: demonstrate how the pieces connect; replace bootstrap details as the project evolves.
-import { createWorld, TileFlag, inBounds } from './world';
+import { createWorld, TileFlag, inBounds, isWalkable } from './world';
 import {
   createActors,
   createActor,
   removeActor,
+  updatePosition,
   ActorsState,
   Actor,
   getPosition,
   getRenderable,
   getTags,
   getKind,
+  getVitals,
+  getPassability,
+  isSelectable,
+  isTargetable,
   ActorComponents,
 } from './actors';
 import { createDebugUI } from './ui';
@@ -38,6 +43,8 @@ function bootstrap() {
     ActorComponents.renderable({ glyphId: 1 }),
     ActorComponents.vitals({ maxHp: 10, maxMp: 5, maxStamina: 8, hp: 10, mp: 5, stamina: 8 }),
     ActorComponents.tags(['dwarf']),
+    ActorComponents.selectable(true),
+    ActorComponents.passability({ allowsPassThrough: true }),
   ]); // Green X to the left
   actors = createActor(actors, { id: 2 }, [
     ActorComponents.kind('creature'),
@@ -45,6 +52,8 @@ function bootstrap() {
     ActorComponents.renderable({ glyphId: 2 }),
     ActorComponents.vitals({ maxHp: 10, maxMp: 5, maxStamina: 8, hp: 10, mp: 5, stamina: 8 }),
     ActorComponents.tags(['dwarf']),
+    ActorComponents.selectable(true),
+    ActorComponents.passability({ allowsPassThrough: true }),
   ]); // Red Y to the right
 
   let nextActorId = 100;
@@ -52,13 +61,15 @@ function bootstrap() {
     ActorComponents.kind('rock'),
     ActorComponents.position({ x: center.x - 1, y: 0 }),
     ActorComponents.renderable({ glyphId: 3 }),
-    ActorComponents.tags(['mineable', 'solid']),
+    ActorComponents.tags(['mineable']),
+    ActorComponents.targetable(true),
   ]);
   actors = createActor(actors, { id: nextActorId++ }, [
     ActorComponents.kind('rock'),
     ActorComponents.position({ x: center.x + 1, y: 0 }),
     ActorComponents.renderable({ glyphId: 3 }),
-    ActorComponents.tags(['mineable', 'solid']),
+    ActorComponents.tags(['mineable']),
+    ActorComponents.targetable(true),
   ]);
 
   const initialState: GameState = { world, actors, tick: 0 };
@@ -91,6 +102,11 @@ function bootstrap() {
     glyph: document.getElementById('inspector-glyph'),
     avatar: document.getElementById('inspector-avatar'),
     pos: document.getElementById('inspector-pos'),
+    hp: document.getElementById('inspector-hp'),
+    mp: document.getElementById('inspector-mp'),
+    stamina: document.getElementById('inspector-stamina'),
+    vitals: document.getElementById('inspector-vitals'),
+    actionHints: document.getElementById('action-hints'),
     sidebar: document.getElementById('sidebar'),
     ui: document.getElementById('ui'),
   };
@@ -125,6 +141,7 @@ function bootstrap() {
   };
 
   const findActorAt = (state: ActorsState, x: number, y: number): Actor | undefined => {
+    // Target priority: first match in actor list.
     for (const actor of state.actors) {
       const pos = state.positions.get(actor.id);
       if (pos && pos.x === x && pos.y === y) return actor;
@@ -133,7 +150,7 @@ function bootstrap() {
   };
 
   const updateInspector = () => {
-    if (!inspector.name || !inspector.glyph || !inspector.pos || !inspector.avatar) return;
+    if (!inspector.name || !inspector.glyph || !inspector.pos || !inspector.avatar || !inspector.hp || !inspector.mp || !inspector.stamina || !inspector.vitals) return;
     const actor = findActorAt(actors, cursor.x, cursor.y);
     if (actor) {
       const kind = getKind(actors, actor.id);
@@ -151,13 +168,80 @@ function bootstrap() {
       inspector.glyph.textContent = char;
       inspector.avatar.textContent = char;
       (inspector.avatar as HTMLElement).style.color = actorGlyphColor(glyphId);
+      const vitals = getVitals(actors, actor.id);
+      if (vitals) {
+        inspector.vitals.style.display = 'block';
+        inspector.hp.textContent = `${vitals.hp}/${vitals.maxHp}`;
+        inspector.mp.textContent = `${vitals.mp}/${vitals.maxMp}`;
+        inspector.stamina.textContent = `${vitals.stamina}/${vitals.maxStamina}`;
+      } else {
+        inspector.vitals.style.display = 'none';
+      }
     } else {
       inspector.name.textContent = 'None';
       inspector.glyph.textContent = '-';
       inspector.avatar.textContent = '?';
       (inspector.avatar as HTMLElement).style.color = '#9ca3af';
+      inspector.vitals.style.display = 'none';
     }
     inspector.pos.textContent = `${cursor.x}, ${cursor.y}`;
+  };
+
+  const uiState = {
+    mode: 'normal' as 'normal' | 'move',
+    selectedActorId: null as number | null,
+  };
+
+  const isBlocked = (x: number, y: number, ignoreId?: number) => {
+    for (const actor of actors.actors) {
+      if (actor.id === ignoreId) continue;
+      const pos = getPosition(actors, actor.id);
+      if (!pos || pos.x !== x || pos.y !== y) continue;
+      const pass = getPassability(actors, actor.id);
+      if (!pass || !pass.allowsPassThrough) return true;
+    }
+    return false;
+  };
+
+  const getAdjacentTargetable = (x: number, y: number): Actor | undefined => {
+    for (const actor of actors.actors) {
+      const pos = getPosition(actors, actor.id);
+      if (!pos) continue;
+      const dx = Math.abs(pos.x - x);
+      const dy = Math.abs(pos.y - y);
+      if (dx === 0 && dy === 0) continue;
+      if (dx <= 1 && dy <= 1 && isTargetable(actors, actor.id)) {
+        return actor; // Target priority: first match in actor list.
+      }
+    }
+    return undefined;
+  };
+
+  const updateActionHints = () => {
+    if (!inspector.actionHints) return;
+    const actor = findActorAt(actors, cursor.x, cursor.y);
+    if (!actor) {
+      inspector.actionHints.style.display = 'none';
+      return;
+    }
+    if (isSelectable(actors, actor.id)) {
+      inspector.actionHints.style.display = 'block';
+      const pos = getPosition(actors, actor.id);
+      const hasTarget = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
+      inspector.actionHints.innerHTML = [
+        '<span class="action">U: Move</span>',
+        hasTarget ? '<span class="action">I: Mine</span>' : '<span class="action">I: Mine (adjacent rock)</span>',
+        hasTarget ? '<span class="action">O: Fight</span>' : '<span class="action">O: Fight (adjacent target)</span>',
+        '<span class="action">J/K/L: Target</span>',
+      ].join(' ');
+      return;
+    }
+    if (isTargetable(actors, actor.id)) {
+      inspector.actionHints.style.display = 'block';
+      inspector.actionHints.innerHTML = ['<span class="action">J/K/L: Target</span>'].join(' ');
+      return;
+    }
+    inspector.actionHints.style.display = 'none';
   };
 
   const loop = new FixedStepLoop(
@@ -196,6 +280,24 @@ function bootstrap() {
     backend.setCursorPosition(cursor.x, cursor.y);
   };
 
+  const moveSelectedActor = (dx: number, dy: number) => {
+    if (uiState.selectedActorId === null) return;
+    const pos = getPosition(actors, uiState.selectedActorId);
+    if (!pos) return;
+    const nx = pos.x + dx;
+    const ny = pos.y + dy;
+    if (!inBounds(world, nx, ny)) return;
+    if (!isWalkable(world, nx, ny)) return;
+    if (isBlocked(nx, ny, uiState.selectedActorId)) return;
+    actors = updatePosition(actors, uiState.selectedActorId, { x: nx, y: ny });
+    cursor.x = nx;
+    cursor.y = ny;
+    backend.setCursorPosition(cursor.x, cursor.y);
+    refreshActors();
+    updateInspector();
+    uiState.mode = 'normal';
+  };
+
   const refreshActors = () => {
     const visuals = actors.actors.map((actor) => {
       const pos = getPosition(actors, actor.id);
@@ -210,20 +312,21 @@ function bootstrap() {
     backend.setActors(visuals);
   };
 
-  const mineRockAtCursor = () => {
-    const target = findActorAt(actors, cursor.x, cursor.y);
-    const kind = target ? getKind(actors, target.id) : undefined;
-    if (!target || kind !== 'rock') return;
-    actors = removeActor(actors, target.id);
+  const mineRockAtTarget = (targetId: number) => {
+    const kind = getKind(actors, targetId);
+    const pos = getPosition(actors, targetId);
+    if (kind !== 'rock' || !pos) return;
+    actors = removeActor(actors, targetId);
     const roll = nextInt(dropSeed, 5);
     dropSeed = roll.nextSeed;
     const count = roll.value + 1;
     for (let i = 0; i < count; i++) {
       actors = createActor(actors, { id: nextActorId++ }, [
         ActorComponents.kind('rock-material'),
-        ActorComponents.position({ x: cursor.x, y: cursor.y }),
+        ActorComponents.position({ x: pos.x, y: pos.y }),
         ActorComponents.renderable({ glyphId: 4 }),
         ActorComponents.tags(['item']),
+        ActorComponents.passability({ allowsPassThrough: true }),
       ]);
     }
     refreshActors();
@@ -236,35 +339,72 @@ function bootstrap() {
       case 'ArrowUp':
       case 'w':
       case 'W':
-        moveCursor(0, -1);
+        uiState.mode === 'move' ? moveSelectedActor(0, -1) : moveCursor(0, -1);
         break;
       case 'ArrowDown':
       case 's':
       case 'S':
-        moveCursor(0, 1);
+        uiState.mode === 'move' ? moveSelectedActor(0, 1) : moveCursor(0, 1);
         break;
       case 'ArrowLeft':
       case 'a':
       case 'A':
-        moveCursor(-1, 0);
+        uiState.mode === 'move' ? moveSelectedActor(-1, 0) : moveCursor(-1, 0);
         break;
       case 'ArrowRight':
       case 'd':
       case 'D':
-        moveCursor(1, 0);
+        uiState.mode === 'move' ? moveSelectedActor(1, 0) : moveCursor(1, 0);
         break;
-      case 'm':
-      case 'M':
-        mineRockAtCursor();
+      case 'u':
+      case 'U': {
+        const actor = findActorAt(actors, cursor.x, cursor.y);
+        if (actor && isSelectable(actors, actor.id)) {
+          uiState.selectedActorId = actor.id;
+          uiState.mode = 'move';
+        }
+        break;
+      }
+      case 'i':
+      case 'I': {
+        const actor = findActorAt(actors, cursor.x, cursor.y);
+        if (!actor || !isSelectable(actors, actor.id)) break;
+        const pos = getPosition(actors, actor.id);
+        const target = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
+        if (target) {
+          mineRockAtTarget(target.id);
+        }
+        break;
+      }
+      case 'o':
+      case 'O': {
+        const actor = findActorAt(actors, cursor.x, cursor.y);
+        if (!actor || !isSelectable(actors, actor.id)) break;
+        const pos = getPosition(actors, actor.id);
+        const target = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
+        if (target) {
+          // Placeholder: fight not implemented yet.
+        }
+        break;
+      }
+      case 'j':
+      case 'k':
+      case 'l':
+      case 'J':
+      case 'K':
+      case 'L':
+        // Reserved for target confirmations; no-op for now.
         break;
       default:
         handled = false;
     }
     if (handled) event.preventDefault();
     updateInspector();
+    updateActionHints();
   });
 
   updateInspector();
+  updateActionHints();
   loop.start();
 }
 

@@ -31,7 +31,10 @@ export type ActorComponent =
   | { kind: 'renderable'; value: Renderable }
   | { kind: 'vitals'; value: Vitals }
   | { kind: 'tags'; value: Iterable<string> }
-  | { kind: 'kind'; value: string };
+  | { kind: 'kind'; value: string }
+  | { kind: 'selectable'; value: boolean }
+  | { kind: 'targetable'; value: boolean }
+  | { kind: 'passability'; value: { allowsPassThrough: boolean } };
 
 export interface ActorsState {
   actors: Actor[];
@@ -41,6 +44,9 @@ export interface ActorsState {
   tags: Map<ActorId, Set<string>>;
   vitals: Map<ActorId, Vitals>;
   kinds: Map<ActorId, string>;
+  selectables: Map<ActorId, boolean>;
+  targetables: Map<ActorId, boolean>;
+  passability: Map<ActorId, { allowsPassThrough: boolean }>;
 }
 
 export function createActors(): ActorsState {
@@ -52,6 +58,9 @@ export function createActors(): ActorsState {
     tags: new Map(),
     vitals: new Map(),
     kinds: new Map(),
+    selectables: new Map(),
+    targetables: new Map(),
+    passability: new Map(),
   };
 }
 
@@ -61,6 +70,9 @@ export const ActorComponents = {
   renderable: (value: Renderable): ActorComponent => ({ kind: 'renderable', value }),
   vitals: (value: Vitals): ActorComponent => ({ kind: 'vitals', value }),
   tags: (value: Iterable<string>): ActorComponent => ({ kind: 'tags', value }),
+  selectable: (value: boolean = true): ActorComponent => ({ kind: 'selectable', value }),
+  targetable: (value: boolean = true): ActorComponent => ({ kind: 'targetable', value }),
+  passability: (value: { allowsPassThrough: boolean }): ActorComponent => ({ kind: 'passability', value }),
 } as const;
 
 function addActorInternal(state: ActorsState, actor: Actor): ActorsState {
@@ -77,6 +89,9 @@ function addActorInternal(state: ActorsState, actor: Actor): ActorsState {
     tags: state.tags,
     vitals: state.vitals,
     kinds: state.kinds,
+    selectables: state.selectables,
+    targetables: state.targetables,
+    passability: state.passability,
   };
 }
 
@@ -87,6 +102,9 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
   let nextTags = withActor.tags;
   let nextVitals = withActor.vitals;
   let nextKinds = withActor.kinds;
+  let nextSelectables = withActor.selectables;
+  let nextTargetables = withActor.targetables;
+  let nextPassability = withActor.passability;
   let kindValue: string | undefined;
   let hasVitals = false;
 
@@ -114,6 +132,18 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
         nextKinds.set(actor.id, component.value);
         kindValue = component.value;
         break;
+      case 'selectable':
+        nextSelectables = nextSelectables === withActor.selectables ? new Map(nextSelectables) : nextSelectables;
+        nextSelectables.set(actor.id, component.value);
+        break;
+      case 'targetable':
+        nextTargetables = nextTargetables === withActor.targetables ? new Map(nextTargetables) : nextTargetables;
+        nextTargetables.set(actor.id, component.value);
+        break;
+      case 'passability':
+        nextPassability = nextPassability === withActor.passability ? new Map(nextPassability) : nextPassability;
+        nextPassability.set(actor.id, component.value);
+        break;
     }
   }
 
@@ -129,6 +159,9 @@ export function createActor(state: ActorsState, actor: Actor, components: ActorC
     tags: nextTags,
     vitals: nextVitals,
     kinds: nextKinds,
+    selectables: nextSelectables,
+    targetables: nextTargetables,
+    passability: nextPassability,
   };
 }
 
@@ -149,6 +182,12 @@ export function removeActor(state: ActorsState, id: ActorId): ActorsState {
   nextVitals.delete(id);
   const nextKinds = new Map(state.kinds);
   nextKinds.delete(id);
+  const nextSelectables = new Map(state.selectables);
+  nextSelectables.delete(id);
+  const nextTargetables = new Map(state.targetables);
+  nextTargetables.delete(id);
+  const nextPassability = new Map(state.passability);
+  nextPassability.delete(id);
   return {
     actors: nextActors,
     indexById: nextIndex,
@@ -157,6 +196,9 @@ export function removeActor(state: ActorsState, id: ActorId): ActorsState {
     tags: nextTags,
     vitals: nextVitals,
     kinds: nextKinds,
+    selectables: nextSelectables,
+    targetables: nextTargetables,
+    passability: nextPassability,
   };
 }
 
@@ -200,4 +242,16 @@ export function getTags(state: ActorsState, id: ActorId): Set<string> | undefine
 
 export function getKind(state: ActorsState, id: ActorId): string | undefined {
   return state.kinds.get(id);
+}
+
+export function isSelectable(state: ActorsState, id: ActorId): boolean {
+  return state.selectables.get(id) === true;
+}
+
+export function isTargetable(state: ActorsState, id: ActorId): boolean {
+  return state.targetables.get(id) === true;
+}
+
+export function getPassability(state: ActorsState, id: ActorId): { allowsPassThrough: boolean } | undefined {
+  return state.passability.get(id);
 }

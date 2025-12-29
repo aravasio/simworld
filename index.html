@@ -31,8 +31,19 @@
       }
       #shell {
         display: flex;
-        gap: 0.75rem;
         align-items: flex-start;
+        gap: 0.75rem;
+      }
+      #layout {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+      }
+      #scene {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
       }
       #main {
         display: inline-flex;
@@ -119,6 +130,11 @@
         font-weight: 700;
         font-family: 'Courier New', monospace;
       }
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 0.5rem 0;
+      }
       #avatar-frame {
         width: 96px;
         height: 96px;
@@ -145,6 +161,20 @@
         border-radius: 4px;
         font-family: 'Courier New', monospace;
       }
+      #action-hints {
+        width: 100%;
+        padding: 0.4rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #0d1117;
+        color: var(--muted);
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+      }
+      #action-hints .action {
+        color: #c9cdd4;
+        margin-right: 0.75rem;
+      }
     </style>
   </head>
   <body>
@@ -161,29 +191,54 @@
     </div>
 
     <div id="shell">
-      <div id="main">
-        <!-- Canvas target for rendering -->
-        <canvas id="viewport"></canvas>
-      </div>
+      <div id="layout">
+        <div id="scene">
+          <div id="main">
+            <!-- Canvas target for rendering -->
+            <canvas id="viewport"></canvas>
+          </div>
 
-      <aside id="sidebar">
-        <h2>Inspector</h2>
-        <div id="avatar-frame">
-          <span id="inspector-avatar">?</span>
+          <aside id="sidebar">
+            <h2>Inspector</h2>
+            <div id="avatar-frame">
+              <span id="inspector-avatar">?</span>
+            </div>
+            <div class="field">
+              <span class="label">Entity</span>
+              <span id="inspector-name" class="value">None</span>
+            </div>
+            <div class="field">
+              <span class="label">Glyph</span>
+              <span id="inspector-glyph" class="value">-</span>
+            </div>
+            <div class="field">
+              <span class="label">Position</span>
+              <span id="inspector-pos" class="value">-,-</span>
+            </div>
+            <div id="inspector-vitals">
+              <div class="divider"></div>
+              <div class="field">
+                <span class="label">HP</span>
+                <span id="inspector-hp" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">MP</span>
+                <span id="inspector-mp" class="value">-</span>
+              </div>
+              <div class="field">
+                <span class="label">Stamina</span>
+                <span id="inspector-stamina" class="value">-</span>
+              </div>
+            </div>
+          </aside>
         </div>
-        <div class="field">
-          <span class="label">Entity</span>
-          <span id="inspector-name" class="value">None</span>
+
+        <div id="action-hints">
+          <span class="action">No selectable actor</span>
         </div>
-        <div class="field">
-          <span class="label">Glyph</span>
-          <span id="inspector-glyph" class="value">-</span>
-        </div>
-        <div class="field">
-          <span class="label">Position</span>
-          <span id="inspector-pos" class="value">-,-</span>
-        </div>
-      </aside>
+      </div>
+    </div>
+
     </div>
 
     <!-- Main entry point; Vite will resolve /src/main.ts -->
