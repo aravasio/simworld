@@ -4,17 +4,19 @@
 This file tracks engine milestones and current architecture choices. Keep it updated as the sim grows.
 
 ## Current State
-- Deterministic fixed-step loop wired with pause/resume/step controls.
+- Deterministic fixed-step loop wired with pause/resume/step controls (Space toggles pause, Ctrl+Space steps when paused).
 - Pixi renderer draws a fixed-size grid, glyphs, and cursor overlay.
 - Actors model unified: all in-world things are actors with component maps.
 - Actor components are created via the `ActorComponents` catalog.
 - Inspector shows info under cursor (name/glyph/position + vitals when present).
-- Move mode via Space with red border cue; blocked moves show status message.
+- Move mode via Enter/E with red border cue; blocked moves show status message.
 - Move/mine commands run through sim step (command queue).
+- Input handling factored into a pure mapper (`src/input.ts`) for testability.
+- Minimal test harness in `tests/` covering pathfinding, movement, mining, and input mapping.
 
 ## Actor Model (Current)
 - Actor is just `{ id }`.
-- Components live in maps: `positions`, `renderables`, `tags`, `vitals`, `kinds`, `selectables`, `targetables`, `passability`.
+- Components live in maps: `positions`, `renderables`, `tags`, `vitals`, `kinds`, `selectables`, `targetables`, `passability`, `paths`.
 - `createActor(state, actor, components)` applies a list of components.
 - `kind` is a component, not a field.
 - Vitals is a single unified component (no stats/current split).
@@ -36,3 +38,4 @@ This file tracks engine milestones and current architecture choices. Keep it upd
 - Decide render ordering for stacked actors (items vs. rocks vs. creatures).
 - Strengthen FP guarantees by ensuring component maps are always copied on write.
 - Consider removing `let` state in `src/main.ts` in favor of functional pipelines.
+- Grow test coverage to include larger world configs and scenario snapshots.

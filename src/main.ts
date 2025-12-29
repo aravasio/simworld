@@ -22,6 +22,7 @@ import { Renderer } from './renderer/renderer';
 import { PixiBackend } from './renderer/pixi';
 import { RngSeed } from './rng';
 import { Command, GameState } from './sim';
+import { interpretKeyInput } from './input';
 
 function bootstrap() {
   const canvas = document.getElementById('viewport') as HTMLCanvasElement;
@@ -339,100 +340,64 @@ function bootstrap() {
   };
 
   window.addEventListener('keydown', (event) => {
-    let handled = true;
-    switch (event.key) {
-      case 'Escape':
-        if (uiState.mode === 'move') {
-          uiState.mode = 'normal';
+    const actorAtCursor = findActorAt(currentState.actors, cursor.x, cursor.y);
+    const selectableAtCursor = actorAtCursor ? isSelectable(currentState.actors, actorAtCursor.id) : false;
+    const actorPos = actorAtCursor && selectableAtCursor ? getPosition(currentState.actors, actorAtCursor.id) : undefined;
+    const target = actorPos ? getAdjacentTargetable(actorPos.x, actorPos.y) : undefined;
+    const intent = interpretKeyInput(
+      { key: event.key, ctrlKey: event.ctrlKey },
+      {
+        mode: uiState.mode,
+        isPaused,
+        hasSelectableAtCursor: selectableAtCursor,
+        canMine: !!target,
+      }
+    );
+
+    switch (intent.kind) {
+      case 'cancelMove':
+        uiState.mode = 'normal';
+        updateMoveModeUI();
+        break;
+      case 'togglePause':
+        if (isPaused) {
+          loop.resume();
+          isPaused = false;
+        } else {
+          loop.pause();
+          isPaused = true;
+        }
+        break;
+      case 'stepOnce':
+        if (isPaused) {
+          loop.stepOnce();
+        } else {
+          loop.pause();
+          isPaused = true;
+        }
+        break;
+      case 'cursorMove':
+        moveCursor(intent.dx, intent.dy);
+        break;
+      case 'enterMoveMode':
+        if (actorAtCursor && selectableAtCursor) {
+          uiState.selectedActorId = actorAtCursor.id;
+          uiState.mode = 'move';
           updateMoveModeUI();
         }
         break;
-      case ' ':
-        if (event.ctrlKey) {
-          if (isPaused) {
-            loop.stepOnce();
-          } else {
-            loop.pause();
-            isPaused = true;
-          }
-        } else {
-          if (isPaused) {
-            loop.resume();
-            isPaused = false;
-          } else {
-            loop.pause();
-            isPaused = true;
-          }
+      case 'confirmMove':
+        confirmMoveToCursor();
+        break;
+      case 'queueMine':
+        if (actorAtCursor && selectableAtCursor) {
+          queueMine(actorAtCursor.id);
         }
         break;
-      case 'ArrowUp':
-      case 'w':
-      case 'W':
-        moveCursor(0, -1);
+      case 'none':
         break;
-      case 'ArrowDown':
-      case 's':
-      case 'S':
-        moveCursor(0, 1);
-        break;
-      case 'ArrowLeft':
-      case 'a':
-      case 'A':
-        moveCursor(-1, 0);
-        break;
-      case 'ArrowRight':
-      case 'd':
-      case 'D':
-        moveCursor(1, 0);
-        break;
-      case 'Enter':
-      case 'e':
-      case 'E':
-        if (uiState.mode === 'move') {
-          confirmMoveToCursor();
-        } else {
-          const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
-          if (actor && isSelectable(currentState.actors, actor.id)) {
-            uiState.selectedActorId = actor.id;
-            uiState.mode = 'move';
-            updateMoveModeUI();
-          }
-        }
-        break;
-      case 'i':
-      case 'I': {
-        const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
-        if (!actor || !isSelectable(currentState.actors, actor.id)) break;
-        const pos = getPosition(currentState.actors, actor.id);
-        const target = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
-        if (target) {
-          queueMine(actor.id);
-        }
-        break;
-      }
-      case 'o':
-      case 'O': {
-        const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
-        if (!actor || !isSelectable(currentState.actors, actor.id)) break;
-        const pos = getPosition(currentState.actors, actor.id);
-        const target = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
-        if (target) {
-          // Placeholder: fight not implemented yet.
-        }
-        break;
-      }
-      case 'j':
-      case 'k':
-      case 'l':
-      case 'J':
-      case 'K':
-      case 'L':
-        handled = false;
-        break;
-      default:
-        handled = false;
     }
-    if (handled) event.preventDefault();
+    if (intent.kind !== 'none') event.preventDefault();
     updateInspector();
     updateActionHints();
   });
