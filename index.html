@@ -59,6 +59,10 @@
         border: 2px solid var(--border);
         box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
       }
+      #viewport.move-mode {
+        border-color: #b91c1c;
+        box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.5), 0 6px 18px rgba(0, 0, 0, 0.5);
+      }
       #ui {
         display: flex;
         gap: 0.5rem;
@@ -175,6 +179,14 @@
         color: #c9cdd4;
         margin-right: 0.75rem;
       }
+      #status-message {
+        margin-top: 0.35rem;
+        color: #f87171;
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
     </style>
   </head>
   <body>
@@ -236,6 +248,7 @@
         <div id="action-hints">
           <span class="action">No selectable actor</span>
         </div>
+        <div id="status-message"></div>
       </div>
     </div>
 

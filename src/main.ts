@@ -107,6 +107,7 @@ function bootstrap() {
     stamina: document.getElementById('inspector-stamina'),
     vitals: document.getElementById('inspector-vitals'),
     actionHints: document.getElementById('action-hints'),
+    status: document.getElementById('status-message'),
     sidebar: document.getElementById('sidebar'),
     ui: document.getElementById('ui'),
   };
@@ -192,6 +193,17 @@ function bootstrap() {
     selectedActorId: null as number | null,
   };
 
+  let statusTimer: number | null = null;
+  const setStatus = (message: string) => {
+    if (!inspector.status) return;
+    inspector.status.textContent = message;
+    inspector.status.style.opacity = '1';
+    if (statusTimer !== null) window.clearTimeout(statusTimer);
+    statusTimer = window.setTimeout(() => {
+      if (inspector.status) inspector.status.style.opacity = '0';
+    }, 1500);
+  };
+
   const isBlocked = (x: number, y: number, ignoreId?: number) => {
     for (const actor of actors.actors) {
       if (actor.id === ignoreId) continue;
@@ -228,11 +240,13 @@ function bootstrap() {
       inspector.actionHints.style.display = 'block';
       const pos = getPosition(actors, actor.id);
       const hasTarget = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
+      const moveLabel = uiState.mode === 'move' ? 'Space: Confirm Move' : 'Space: Move';
       inspector.actionHints.innerHTML = [
-        '<span class="action">U: Move</span>',
+        `<span class="action">${moveLabel}</span>`,
         hasTarget ? '<span class="action">I: Mine</span>' : '<span class="action">I: Mine (adjacent rock)</span>',
         hasTarget ? '<span class="action">O: Fight</span>' : '<span class="action">O: Fight (adjacent target)</span>',
         '<span class="action">J/K/L: Target</span>',
+        '<span class="action">Esc: Cancel Move</span>',
       ].join(' ');
       return;
     }
@@ -242,6 +256,10 @@ function bootstrap() {
       return;
     }
     inspector.actionHints.style.display = 'none';
+  };
+
+  const updateMoveModeUI = () => {
+    canvas.classList.toggle('move-mode', uiState.mode === 'move');
   };
 
   const loop = new FixedStepLoop(
@@ -280,22 +298,19 @@ function bootstrap() {
     backend.setCursorPosition(cursor.x, cursor.y);
   };
 
-  const moveSelectedActor = (dx: number, dy: number) => {
+  const confirmMoveToCursor = () => {
     if (uiState.selectedActorId === null) return;
-    const pos = getPosition(actors, uiState.selectedActorId);
-    if (!pos) return;
-    const nx = pos.x + dx;
-    const ny = pos.y + dy;
-    if (!inBounds(world, nx, ny)) return;
-    if (!isWalkable(world, nx, ny)) return;
-    if (isBlocked(nx, ny, uiState.selectedActorId)) return;
-    actors = updatePosition(actors, uiState.selectedActorId, { x: nx, y: ny });
-    cursor.x = nx;
-    cursor.y = ny;
-    backend.setCursorPosition(cursor.x, cursor.y);
+    if (!inBounds(world, cursor.x, cursor.y)) return;
+    if (!isWalkable(world, cursor.x, cursor.y)) return;
+    if (isBlocked(cursor.x, cursor.y, uiState.selectedActorId)) {
+      setStatus('Blocked: cannot move there.');
+      return;
+    }
+    actors = updatePosition(actors, uiState.selectedActorId, { x: cursor.x, y: cursor.y });
     refreshActors();
     updateInspector();
     uiState.mode = 'normal';
+    updateMoveModeUI();
   };
 
   const refreshActors = () => {
@@ -336,35 +351,44 @@ function bootstrap() {
   window.addEventListener('keydown', (event) => {
     let handled = true;
     switch (event.key) {
+      case 'Escape':
+        if (uiState.mode === 'move') {
+          uiState.mode = 'normal';
+          updateMoveModeUI();
+        }
+        break;
       case 'ArrowUp':
       case 'w':
       case 'W':
-        uiState.mode === 'move' ? moveSelectedActor(0, -1) : moveCursor(0, -1);
+        moveCursor(0, -1);
         break;
       case 'ArrowDown':
       case 's':
       case 'S':
-        uiState.mode === 'move' ? moveSelectedActor(0, 1) : moveCursor(0, 1);
+        moveCursor(0, 1);
         break;
       case 'ArrowLeft':
       case 'a':
       case 'A':
-        uiState.mode === 'move' ? moveSelectedActor(-1, 0) : moveCursor(-1, 0);
+        moveCursor(-1, 0);
         break;
       case 'ArrowRight':
       case 'd':
       case 'D':
-        uiState.mode === 'move' ? moveSelectedActor(1, 0) : moveCursor(1, 0);
+        moveCursor(1, 0);
         break;
-      case 'u':
-      case 'U': {
-        const actor = findActorAt(actors, cursor.x, cursor.y);
-        if (actor && isSelectable(actors, actor.id)) {
-          uiState.selectedActorId = actor.id;
-          uiState.mode = 'move';
+      case ' ':
+        if (uiState.mode === 'move') {
+          confirmMoveToCursor();
+        } else {
+          const actor = findActorAt(actors, cursor.x, cursor.y);
+          if (actor && isSelectable(actors, actor.id)) {
+            uiState.selectedActorId = actor.id;
+            uiState.mode = 'move';
+            updateMoveModeUI();
+          }
         }
         break;
-      }
       case 'i':
       case 'I': {
         const actor = findActorAt(actors, cursor.x, cursor.y);
@@ -405,6 +429,7 @@ function bootstrap() {
 
   updateInspector();
   updateActionHints();
+  updateMoveModeUI();
   loop.start();
 }
 
