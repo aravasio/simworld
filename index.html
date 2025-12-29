@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dwarf-Like Sim Engine</title>
+    <!-- Host page for the engine. Extend with styles or debug overlays as needed. -->
+    <style>
+      body {
+        margin: 0;
+        background: #0f0f0f;
+        color: #e0e0e0;
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.5rem;
+      }
+      #viewport {
+        display: block;
+        background: #111;
+        image-rendering: pixelated;
+      }
+      #ui {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        background: #1a1a1a;
+        border-top: 1px solid #222;
+        padding: 0.5rem;
+      }
+      input[type='number'] {
+        width: 4rem;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Canvas target for rendering -->
+    <canvas id="viewport"></canvas>
+
+    <!-- Minimal debug UI controls -->
+    <div id="ui">
+      <button id="pause">Pause</button>
+      <button id="resume">Resume</button>
+      <button id="step">Step</button>
+      <label>
+        Speed
+        <input id="speed" type="number" min="0.1" step="0.1" value="1" />
+      </label>
+      <span id="tick">Tick: 0</span>
+    </div>
+
+    <!-- Main entry point; Vite will resolve /src/main.ts -->
+    <script type="module" src="/src/main.ts"></script>
+
+    <!-- Future extensions:
+         - Add a log panel or overlay for inspecting diffs.
+         - Add keyboard input handlers to push commands to the sim.
+         - Add CSS to theme the debug UI. -->
+  </body>
+</html>

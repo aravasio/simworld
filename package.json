@@ -1,0 +1,19 @@
+{
+  "_comment": "Package manifest: declares deps, scripts. Extend dependencies or scripts as features grow (e.g., add test runners).",
+  "name": "dwarf-sim-engine",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^6.4.1"
+  },
+  "dependencies": {
+    "pixi.js": "^7.3.0"
+  }
+}

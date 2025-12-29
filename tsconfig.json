@@ -1,0 +1,16 @@
+{
+  // TypeScript config for the browser build. Tweak strictness/paths as the project grows.
+  // Future additions: path aliases (compilerOptions.paths), JSX settings if you add a UI library.
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
