@@ -18,10 +18,11 @@ This file tracks engine milestones and current architecture choices. Keep it upd
 
 ## Actor Model (Current)
 - Actor is just `{ id }`.
-- Components live in maps: `positions`, `renderables`, `tags`, `vitals`, `kinds`, `selectables`, `targetables`, `passability`, `paths`.
+- Components live in maps: `positions`, `renderables`, `tags`, `vitals`, `hitPoints`, `locks`, `contents`, `stackables`, `kinds`, `selectables`, `targetables`, `passability`, `paths`.
 - `createActor(state, actor, components)` applies a list of components.
 - `kind` is a component, not a field.
 - Vitals is a single unified component (no stats/current split).
+- Contents stores item actor references as stack/single slots.
 - Target priority uses first actor match in list order (temporary).
 
 ## Gameplay Stubs

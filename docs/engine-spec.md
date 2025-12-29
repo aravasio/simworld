@@ -24,7 +24,7 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
   - Rationale: keeps per-tile storage lean while preserving clarity and debuggability.
 - **ActorsState** (unified in-world entities)
   - Purpose: all in-world things are actors with composable components.
-  - Contents: Actor { id } plus component maps (position, renderable, vitals, tags, kind, selectability, passability, path, etc.).
+  - Contents: Actor { id } plus component maps (position, renderable, vitals, hitPoints, locks, contents, stackables, tags, kind, selectability, passability, path, etc.).
   - Rationale: removes agent/entity split; components compose behavior while keeping storage explicit and deterministic.
 - **GameState**
   - Purpose: the whole sim snapshot.
