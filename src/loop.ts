@@ -2,8 +2,7 @@
 // Purpose: orchestrate time progression deterministically using a fixed accumulator loop.
 // Interacts with: sim (calls step), renderer (render hook), UI (controls pause/step/speed).
 
-import { Command, StepResult, step } from './sim';
-import { GameState } from './sim';
+import { Command, StepResult, step, GameState } from './sim';
 import { RngSeed } from './rng';
 
 export interface LoopConfig {
