@@ -6,7 +6,7 @@ import { PixiBackend } from './renderer/pixi';
 import { RngSeed } from './rng';
 import { createInspector } from './inspector';
 import { interpretKeyInput } from './input';
-import { GameState, Command } from './sim';
+import { GameState, Command, canMoveTo, findAdjacentTargetable } from './sim';
 import {
   findActorAt,
   getPosition,
@@ -14,11 +14,10 @@ import {
   getTags,
   getKind,
   getVitals,
-  getPassability,
   isSelectable,
   isTargetable,
 } from './actors';
-import { inBounds, isWalkable } from './world';
+import { inBounds } from './world';
 
 export function startApp() {
   const canvas = document.getElementById('viewport') as HTMLCanvasElement;
@@ -93,31 +92,6 @@ export function startApp() {
   };
   let isPaused = true;
 
-  const isBlocked = (x: number, y: number, ignoreId?: number) => {
-    for (const actor of currentState.actors.actors) {
-      if (actor.id === ignoreId) continue;
-      const pos = getPosition(currentState.actors, actor.id);
-      if (!pos || pos.x !== x || pos.y !== y) continue;
-      const pass = getPassability(currentState.actors, actor.id);
-      if (!pass || !pass.allowsPassThrough) return true;
-    }
-    return false;
-  };
-
-  const getAdjacentTargetable = (x: number, y: number) => {
-    for (const actor of currentState.actors.actors) {
-      const pos = getPosition(currentState.actors, actor.id);
-      if (!pos) continue;
-      const dx = Math.abs(pos.x - x);
-      const dy = Math.abs(pos.y - y);
-      if (dx === 0 && dy === 0) continue;
-      if (dx <= 1 && dy <= 1 && isTargetable(currentState.actors, actor.id)) {
-        return actor;
-      }
-    }
-    return undefined;
-  };
-
   const updateInspector = () => {
     const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
     inspector.updateInspector({
@@ -136,7 +110,7 @@ export function startApp() {
     const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
     const hasSelectable = actor ? isSelectable(currentState.actors, actor.id) : false;
     const pos = actor ? getPosition(currentState.actors, actor.id) : undefined;
-    const target = pos ? getAdjacentTargetable(pos.x, pos.y) : undefined;
+    const target = pos ? findAdjacentTargetable(currentState, pos.x, pos.y) : undefined;
     inspector.updateActionHints({
       hasSelectable,
       hasTarget: !!target,
@@ -196,8 +170,7 @@ export function startApp() {
   const confirmMoveToCursor = () => {
     if (uiState.selectedActorId === null) return;
     if (!inBounds(world, cursor.x, cursor.y)) return;
-    if (!isWalkable(world, cursor.x, cursor.y)) return;
-    if (isBlocked(cursor.x, cursor.y, uiState.selectedActorId)) {
+    if (!canMoveTo(currentState, uiState.selectedActorId, cursor.x, cursor.y)) {
       inspector.setStatus('Blocked: cannot move there.');
       return;
     }
@@ -228,7 +201,7 @@ export function startApp() {
     const actorAtCursor = findActorAt(currentState.actors, cursor.x, cursor.y);
     const selectableAtCursor = actorAtCursor ? isSelectable(currentState.actors, actorAtCursor.id) : false;
     const actorPos = actorAtCursor && selectableAtCursor ? getPosition(currentState.actors, actorAtCursor.id) : undefined;
-    const target = actorPos ? getAdjacentTargetable(actorPos.x, actorPos.y) : undefined;
+    const target = actorPos ? findAdjacentTargetable(currentState, actorPos.x, actorPos.y) : undefined;
     const intent = interpretKeyInput(
       { key: event.key, ctrlKey: event.ctrlKey },
       {
