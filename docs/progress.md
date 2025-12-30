@@ -28,6 +28,7 @@ This file tracks engine milestones and current architecture choices. Keep it upd
 ## Gameplay Stubs
 - Two dwarf creatures (X/Y) at bottom row.
 - Rocks at top row; mining drops 1–5 rock-material.
+- Chests can be opened to drop contents; smashing a chest destroys it.
 - Contextual action hints under the grid (keyboard-driven).
 
 ## UI Layout
