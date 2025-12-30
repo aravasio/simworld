@@ -17,6 +17,7 @@ export function createInspector(doc: Document): InspectorApi {
     mp: doc.getElementById('inspector-mp'),
     stamina: doc.getElementById('inspector-stamina'),
     vitals: doc.getElementById('inspector-vitals'),
+    contents: doc.getElementById('inspector-contents'),
     actionHints: doc.getElementById('action-hints'),
     status: doc.getElementById('status-message'),
   };
@@ -24,7 +25,17 @@ export function createInspector(doc: Document): InspectorApi {
   let statusTimer: number | null = null;
 
   const updateInspector = (context: InspectorContext) => {
-    if (!elements.name || !elements.glyph || !elements.pos || !elements.avatar || !elements.hp || !elements.mp || !elements.stamina || !elements.vitals) {
+    if (
+      !elements.name ||
+      !elements.glyph ||
+      !elements.pos ||
+      !elements.avatar ||
+      !elements.hp ||
+      !elements.mp ||
+      !elements.stamina ||
+      !elements.vitals ||
+      !elements.contents
+    ) {
       return;
     }
 
@@ -53,12 +64,18 @@ export function createInspector(doc: Document): InspectorApi {
       } else {
         elements.vitals.style.display = 'none';
       }
+      if (context.contents && context.contents.length) {
+        elements.contents.textContent = context.contents.join(', ');
+      } else {
+        elements.contents.textContent = 'None';
+      }
     } else {
       elements.name.textContent = 'None';
       elements.glyph.textContent = '-';
       elements.avatar.textContent = '?';
       elements.avatar.style.color = '#9ca3af';
       elements.vitals.style.display = 'none';
+      elements.contents.textContent = 'None';
     }
 
     elements.pos.textContent = `${context.cursor.x}, ${context.cursor.y}`;

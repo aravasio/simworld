@@ -10,6 +10,7 @@ export interface InspectorElements {
   mp: HTMLElement | null;
   stamina: HTMLElement | null;
   vitals: HTMLElement | null;
+  contents: HTMLElement | null;
   actionHints: HTMLElement | null;
   status: HTMLElement | null;
 }
@@ -21,6 +22,7 @@ export interface InspectorContext {
   tags?: Set<string>;
   renderable?: Renderable;
   vitals?: Vitals;
+  contents?: string[];
   glyphChar: (glyphId: number) => string;
   glyphColor: (glyphId: number) => string;
 }
