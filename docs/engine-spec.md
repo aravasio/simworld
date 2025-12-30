@@ -3,6 +3,15 @@
 ## Vision
 A tiny, purpose-built engine for deterministic grid-world simulation: the world is authoritative data; the sim evolves it via pure steps; rendering is just a projection. One Z-level now, fixed timestep, explicit RNG seed, integer math. Minimal dependencies, all hidden behind adapters so we can swap Pixi for WebGL later without touching engine code. Start with simple wandering agents; grow deliberately.
 
+## Capability Ladder (Vision Targets)
+- **Objects**: items, containers, terrain, and resources as actor components.
+- **Individuals**: needs, inventory, and simple task selection on top of commands.
+- **Households**: shared storage, roles, and cooperative task queues.
+- **Groups/Tribes**: territory, norms, and collective goals.
+- **Societies**: inter-group trade, conflict, and long-horizon planning.
+
+This ladder is a roadmap; only the lower rungs need to be implemented first.
+
 ## Core Principles
 - **Pure and deterministic**: state + commands + rngSeed -> nextState + nextSeed + diff; no floats; fixed tick order.
 - **Data-first**: world and actors are dense data with semantic lookups; behavior lives in sim, not in render.
