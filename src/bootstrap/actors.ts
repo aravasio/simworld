@@ -1,6 +1,6 @@
 import { createActors, createActor, ActorComponents } from '../actors';
 
-export function createInitialActors(center: { x: number; y: number }, bottomY: number) {
+export function createInitialActors(worldSize: { width: number; height: number }, center: { x: number; y: number }, bottomY: number) {
   let actors = createActors();
   actors = createActor(actors, { id: 1 }, [
     ActorComponents.kind('creature'),
@@ -30,57 +30,74 @@ export function createInitialActors(center: { x: number; y: number }, bottomY: n
   ]); // Red Y to the right
 
   let nextActorId = 100;
+  const topY = 0;
+  const rightmostX = worldSize.width - 1;
   actors = createActor(actors, { id: nextActorId++ }, [
     ActorComponents.kind('rock'),
-    ActorComponents.position({ x: center.x - 1, y: 0 }),
+    ActorComponents.position({ x: rightmostX - 1, y: topY }),
     ActorComponents.renderable({ glyphId: 3 }),
     ActorComponents.tags(['mineable']),
     ActorComponents.targetable(true),
   ]);
   actors = createActor(actors, { id: nextActorId++ }, [
     ActorComponents.kind('rock'),
-    ActorComponents.position({ x: center.x + 1, y: 0 }),
+    ActorComponents.position({ x: rightmostX, y: topY }),
     ActorComponents.renderable({ glyphId: 3 }),
     ActorComponents.tags(['mineable']),
     ActorComponents.targetable(true),
   ]);
 
-  const rockStackId = nextActorId++;
-  const goldStackId = nextActorId++;
-  actors = createActor(actors, { id: rockStackId }, [
-    ActorComponents.kind('rock-material'),
-    ActorComponents.renderable({ glyphId: 4 }),
-    ActorComponents.stackable({ count: 4 }),
-    ActorComponents.tags(['item']),
-    ActorComponents.passability({ allowsPassThrough: true }),
-  ]);
-  actors = createActor(actors, { id: goldStackId }, [
+  const goldStack10Id = nextActorId++;
+  const goldStack1Id = nextActorId++;
+  actors = createActor(actors, { id: goldStack10Id }, [
     ActorComponents.kind('gold-coin'),
     ActorComponents.renderable({ glyphId: 6 }),
-    ActorComponents.stackable({ count: 18 }),
+    ActorComponents.stackable({ count: 10 }),
     ActorComponents.tags(['item']),
     ActorComponents.passability({ allowsPassThrough: true }),
   ]);
+  actors = createActor(actors, { id: goldStack1Id }, [
+    ActorComponents.kind('gold-coin'),
+    ActorComponents.renderable({ glyphId: 6 }),
+    ActorComponents.stackable({ count: 1 }),
+    ActorComponents.tags(['item']),
+    ActorComponents.passability({ allowsPassThrough: true }),
+  ]);
+
+  const chestY = topY;
+  const chestXs = [0, 1, 2];
   actors = createActor(actors, { id: nextActorId++ }, [
     ActorComponents.kind('chest'),
-    ActorComponents.position({ x: center.x, y: center.y }),
+    ActorComponents.position({ x: chestXs[0], y: chestY }),
     ActorComponents.renderable({ glyphId: 5 }),
-    ActorComponents.hp({ hp: 12, maxHp: 12 }),
-    ActorComponents.lock({ isLocked: true }),
-    ActorComponents.contents([
-      { kind: 'stack', itemId: rockStackId },
-      { kind: 'stack', itemId: goldStackId },
-    ]),
+    ActorComponents.hp({ hp: 6, maxHp: 6 }),
+    ActorComponents.lock({ isLocked: false }),
+    ActorComponents.contents([{ kind: 'stack', itemId: goldStack10Id }]),
     ActorComponents.targetable(true),
     ActorComponents.selectable(false),
     ActorComponents.passability({ allowsPassThrough: false }),
   ]);
   actors = createActor(actors, { id: nextActorId++ }, [
-    ActorComponents.kind('gold-coin'),
-    ActorComponents.position({ x: center.x + 2, y: center.y }),
-    ActorComponents.renderable({ glyphId: 6 }),
-    ActorComponents.stackable({ count: 12 }),
-    ActorComponents.passability({ allowsPassThrough: true }),
+    ActorComponents.kind('chest'),
+    ActorComponents.position({ x: chestXs[1], y: chestY }),
+    ActorComponents.renderable({ glyphId: 5 }),
+    ActorComponents.hp({ hp: 6, maxHp: 6 }),
+    ActorComponents.lock({ isLocked: false }),
+    ActorComponents.contents([{ kind: 'stack', itemId: goldStack1Id }]),
+    ActorComponents.targetable(true),
+    ActorComponents.selectable(false),
+    ActorComponents.passability({ allowsPassThrough: false }),
+  ]);
+  actors = createActor(actors, { id: nextActorId++ }, [
+    ActorComponents.kind('chest'),
+    ActorComponents.position({ x: chestXs[2], y: chestY }),
+    ActorComponents.renderable({ glyphId: 5 }),
+    ActorComponents.hp({ hp: 6, maxHp: 6 }),
+    ActorComponents.lock({ isLocked: false }),
+    ActorComponents.contents([]),
+    ActorComponents.targetable(true),
+    ActorComponents.selectable(false),
+    ActorComponents.passability({ allowsPassThrough: false }),
   ]);
 
   return { actors, nextActorId };
