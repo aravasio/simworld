@@ -20,6 +20,7 @@ import {
   findActorAt,
   getPosition,
   getRenderable,
+  getContents,
   getTags,
   getKind,
   getStackable,
@@ -82,6 +83,8 @@ export function startApp() {
 
   const updateInspector = () => {
     const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
+    const contents = actor ? getContents(currentState.actors, actor.id) ?? [] : [];
+    const contentsLabels = actor ? summarizeContents(contents) : [];
     inspector.updateInspector({
       actor,
       cursor,
@@ -89,9 +92,29 @@ export function startApp() {
       tags: actor ? getTags(currentState.actors, actor.id) : undefined,
       renderable: actor ? getRenderable(currentState.actors, actor.id) : undefined,
       vitals: actor ? getVitals(currentState.actors, actor.id) : undefined,
+      contents: contentsLabels,
       glyphChar: actorGlyphChar,
       glyphColor: actorGlyphColor,
     });
+  };
+
+  const summarizeContents = (contents: ReturnType<typeof getContents>): string[] => {
+    if (!contents) return [];
+    const counts = new Map<string, number>();
+    const singles: string[] = [];
+    for (const entry of contents) {
+      const itemKind = getKind(currentState.actors, entry.itemId);
+      const label = itemKind ?? `Item ${entry.itemId}`;
+      if (entry.kind === 'stack') {
+        const stack = getStackable(currentState.actors, entry.itemId);
+        const count = stack?.count ?? 1;
+        counts.set(label, (counts.get(label) ?? 0) + count);
+      } else {
+        singles.push(label);
+      }
+    }
+    const merged = Array.from(counts.entries()).map(([label, count]) => `${label} x${count}`);
+    return merged.concat(singles);
   };
 
   const updateActionHints = () => {
