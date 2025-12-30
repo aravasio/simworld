@@ -23,6 +23,7 @@ A tiny deterministic, grid-based simulation engine with a minimal UI. The sim is
 ## Run
 ```
 npm install
+npm run dev
 npm test
 ```
 
