@@ -14,6 +14,13 @@ export function setPosition(state: ActorsState, id: ActorId, position: Position)
   return { ...state, positions: nextPositions };
 }
 
+export function clearPosition(state: ActorsState, id: ActorId): ActorsState {
+  if (!state.positions.has(id)) return state;
+  const nextPositions = new Map(state.positions);
+  nextPositions.delete(id);
+  return { ...state, positions: nextPositions };
+}
+
 export function updateRenderable(state: ActorsState, id: ActorId, renderable: Renderable): ActorsState {
   if (!state.renderables.has(id)) return state;
   const nextRenderables = new Map(state.renderables);

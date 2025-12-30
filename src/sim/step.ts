@@ -6,6 +6,7 @@ import {
   setContents,
   setHitPoints,
   setPosition,
+  clearPosition,
   updatePosition,
   updateRenderable,
   getPosition,
@@ -15,7 +16,7 @@ import { Pathfinding } from '../pathfinding';
 import type { Command, GameState, Mutation, SimConfig, SimDiff, StepResult, CommandResult } from './types';
 import { maybeQueueMove, getMoveFailureReason, planMoveTo, getDirOffset } from './movement';
 import { maybeQueueMine } from './mining';
-import { maybeQueueAttack, maybeQueueOpen } from './interactions';
+import { maybeQueueAttack, maybeQueueOpen, maybeQueuePickup } from './interactions';
 import { queuePathSteps } from './pathing';
 
 export function step(state: GameState, commands: Command[], rngSeed: RngSeed, config: SimConfig = {}): StepResult {
@@ -62,6 +63,9 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
     } else if (cmd.kind === 'attack') {
       const result = maybeQueueAttack(mutations, state, cmd.actorId);
       commandResults.push({ kind: 'attack', actorId: cmd.actorId, status: result.status, reason: result.reason });
+    } else if (cmd.kind === 'pickup') {
+      const result = maybeQueuePickup(mutations, state, cmd.actorId);
+      commandResults.push({ kind: 'pickup', actorId: cmd.actorId, status: result.status, reason: result.reason });
     } else if (cmd.kind === 'wait') {
       commandResults.push({ kind: 'wait', actorId: cmd.actorId, status: 'ok' });
     }
@@ -89,6 +93,8 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
       actorMoves.push({ actorId: m.actorId, from: m.from, to: m.to });
     } else if (m.kind === 'actorPositionSet') {
       nextActors = setPosition(nextActors, m.actorId, m.position);
+    } else if (m.kind === 'actorPositionCleared') {
+      nextActors = clearPosition(nextActors, m.actorId);
     } else if (m.kind === 'actorRemoved') {
       nextActors = removeActor(nextActors, m.actorId);
       actorsRemoved.push(m.actorId);

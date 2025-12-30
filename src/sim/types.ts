@@ -16,11 +16,13 @@ export type Command =
   | { kind: 'mine'; actorId: ActorId }
   | { kind: 'open'; actorId: ActorId }
   | { kind: 'attack'; actorId: ActorId }
+  | { kind: 'pickup'; actorId: ActorId }
   | { kind: 'wait'; actorId: ActorId };
 
 export type Mutation =
   | { kind: 'actorMoved'; actorId: ActorId; from: { x: number; y: number }; to: { x: number; y: number } }
   | { kind: 'actorPositionSet'; actorId: ActorId; position: { x: number; y: number } }
+  | { kind: 'actorPositionCleared'; actorId: ActorId }
   | { kind: 'actorRemoved'; actorId: ActorId }
   | { kind: 'actorAdded'; actorId: ActorId; x: number; y: number; glyphId: number }
   | { kind: 'actorRenderableSet'; actorId: ActorId; renderable: Renderable }
@@ -43,6 +45,7 @@ export type CommandResult =
   | { kind: 'mine'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
   | { kind: 'open'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
   | { kind: 'attack'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
+  | { kind: 'pickup'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
   | { kind: 'wait'; actorId: ActorId; status: 'ok' };
 
 export interface StepResult {
