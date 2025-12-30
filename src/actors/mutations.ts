@@ -1,5 +1,6 @@
 import type { ActorsState, ActorId } from './state';
 import type { ContentsEntry, HitPoints, Position, Renderable } from './components';
+import type { Vitals } from './components';
 
 export function updatePosition(state: ActorsState, id: ActorId, position: Position): ActorsState {
   if (!state.positions.has(id)) return state;
@@ -39,6 +40,13 @@ export function setHitPoints(state: ActorsState, id: ActorId, hitPoints: HitPoin
   const nextHitPoints = new Map(state.hitPoints);
   nextHitPoints.set(id, hitPoints);
   return { ...state, hitPoints: nextHitPoints };
+}
+
+export function setVitals(state: ActorsState, id: ActorId, vitals: Vitals): ActorsState {
+  if (!state.vitals.has(id)) return state;
+  const nextVitals = new Map(state.vitals);
+  nextVitals.set(id, vitals);
+  return { ...state, vitals: nextVitals };
 }
 
 export function setPath(state: ActorsState, id: ActorId, path: { x: number; y: number }[]): ActorsState {

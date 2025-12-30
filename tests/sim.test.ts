@@ -189,6 +189,28 @@ test('attack destroys chest at zero hp and drops contents', () => {
   assertPosition(getPosition(result.nextState.actors, 10), 1, 2, 'contents dropped at chest position');
 });
 
+test('attack reduces creature vitals hit points', () => {
+  const world = buildWorld(3, 3);
+  let actors = createActors();
+  actors = createActor(actors, { id: 1 }, [ActorComponents.position({ x: 1, y: 1 })]);
+  actors = createActor(actors, { id: 2 }, [
+    ActorComponents.kind('creature'),
+    ActorComponents.position({ x: 1, y: 2 }),
+    ActorComponents.vitals({
+      hitPoints: { hp: 3, maxHp: 3 },
+      manaPoints: { mp: 0, maxMp: 0 },
+      staminaPoints: { stamina: 0, maxStamina: 0 },
+    }),
+  ]);
+
+  const state: GameState = { world, actors, tick: 0, nextActorId: 20 };
+  const result = step(state, [{ kind: 'attack', actorId: 1 }], 1);
+
+  assertEqual(result.diff.commandResults[0].status, 'ok', 'attack should succeed');
+  const vitals = getVitals(result.nextState.actors, 2);
+  assertEqual(vitals?.hitPoints.hp, 2, 'attack should reduce vitals hp');
+});
+
 test('pickup moves item into actor contents and clears position', () => {
   const world = buildWorld(3, 3);
   let actors = createActors();

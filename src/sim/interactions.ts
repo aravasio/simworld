@@ -1,10 +1,21 @@
-import { getContents, getHitPoints, getKind, getLockState, getPosition, getStackable, getTags, isTargetable } from '../actors';
-import type { ActorId, ContentsEntry, HitPoints } from '../actors';
+import {
+  getContents,
+  getHitPoints,
+  getKind,
+  getLockState,
+  getPosition,
+  getRenderable,
+  getStackable,
+  getTags,
+  getVitals,
+} from '../actors';
+import type { ActorId, ContentsEntry, HitPoints, Vitals } from '../actors';
 import type { GameState, Mutation } from './types';
 
 const OPEN_CHEST_GLYPH_ID = 7;
 
 export function findAdjacentChest(state: GameState, x: number, y: number): { id: ActorId; x: number; y: number } | null {
+  let best: { id: ActorId; x: number; y: number; score: number } | null = null;
   for (const actor of state.actors.actors) {
     const pos = getPosition(state.actors, actor.id);
     if (!pos) continue;
@@ -12,10 +23,18 @@ export function findAdjacentChest(state: GameState, x: number, y: number): { id:
     const dy = Math.abs(pos.y - y);
     if (dx === 0 && dy === 0) continue;
     if (dx <= 1 && dy <= 1 && getKind(state.actors, actor.id) === 'chest') {
-      return { id: actor.id, x: pos.x, y: pos.y };
+      const renderable = getRenderable(state.actors, actor.id);
+      const isOpen = renderable?.glyphId === 7;
+      const contents = getContents(state.actors, actor.id) ?? [];
+      const hasContents = contents.length > 0;
+      const distanceScore = dx + dy;
+      const score = (isOpen ? 10 : 0) + (hasContents ? 0 : 1) + distanceScore;
+      if (!best || score < best.score) {
+        best = { id: actor.id, x: pos.x, y: pos.y, score };
+      }
     }
   }
-  return null;
+  return best ? { id: best.id, x: best.x, y: best.y } : null;
 }
 
 export function findAdjacentAttackable(state: GameState, x: number, y: number): { id: ActorId; x: number; y: number } | null {
@@ -25,7 +44,7 @@ export function findAdjacentAttackable(state: GameState, x: number, y: number): 
     const dx = Math.abs(pos.x - x);
     const dy = Math.abs(pos.y - y);
     if (dx === 0 && dy === 0) continue;
-    if (dx <= 1 && dy <= 1 && isTargetable(state.actors, actor.id) && getHitPoints(state.actors, actor.id)) {
+    if (dx <= 1 && dy <= 1 && getAttackableHitPoints(state, actor.id)) {
       return { id: actor.id, x: pos.x, y: pos.y };
     }
   }
@@ -77,11 +96,16 @@ export function maybeQueueAttack(
   if (!pos) return { status: 'error', reason: 'missing_position' };
   const target = findAdjacentAttackable(state, pos.x, pos.y);
   if (!target) return { status: 'error', reason: 'no_target' };
-  const hitPoints = getHitPoints(state.actors, target.id);
-  if (!hitPoints) return { status: 'error', reason: 'not_attackable' };
-  const nextHp = Math.max(0, hitPoints.hp - damage);
-  const nextHitPoints: HitPoints = { ...hitPoints, hp: nextHp };
-  mutations.push({ kind: 'actorHitPointsSet', actorId: target.id, hitPoints: nextHitPoints });
+  const attackable = getAttackableHitPoints(state, target.id);
+  if (!attackable) return { status: 'error', reason: 'not_attackable' };
+  const nextHp = Math.max(0, attackable.hitPoints.hp - damage);
+  if (attackable.source === 'hp') {
+    const nextHitPoints: HitPoints = { ...attackable.hitPoints, hp: nextHp };
+    mutations.push({ kind: 'actorHitPointsSet', actorId: target.id, hitPoints: nextHitPoints });
+  } else {
+    const nextVitals: Vitals = { ...attackable.vitals, hitPoints: { ...attackable.hitPoints, hp: nextHp } };
+    mutations.push({ kind: 'actorVitalsSet', actorId: target.id, vitals: nextVitals });
+  }
   if (nextHp === 0) {
     const kind = getKind(state.actors, target.id);
     if (kind === 'chest') {
@@ -114,4 +138,15 @@ function queueContentsDrop(mutations: Mutation[], contents: ContentsEntry[], pos
   for (const entry of contents) {
     mutations.push({ kind: 'actorPositionSet', actorId: entry.itemId, position });
   }
+}
+
+function getAttackableHitPoints(
+  state: GameState,
+  actorId: ActorId
+): { source: 'hp'; hitPoints: HitPoints } | { source: 'vitals'; hitPoints: HitPoints; vitals: Vitals } | null {
+  const hitPoints = getHitPoints(state.actors, actorId);
+  if (hitPoints) return { source: 'hp', hitPoints };
+  const vitals = getVitals(state.actors, actorId);
+  if (vitals) return { source: 'vitals', hitPoints: vitals.hitPoints, vitals };
+  return null;
 }

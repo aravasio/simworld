@@ -1,4 +1,4 @@
-import type { ActorsState, ActorId, ContentsEntry, HitPoints, Renderable } from '../actors';
+import type { ActorsState, ActorId, ContentsEntry, HitPoints, Renderable, Vitals } from '../actors';
 import type { WorldState } from '../world';
 import type { RngSeed } from '../rng';
 import type { PathfindingFn } from '../pathfinding';
@@ -28,6 +28,7 @@ export type Mutation =
   | { kind: 'actorRenderableSet'; actorId: ActorId; renderable: Renderable }
   | { kind: 'actorContentsSet'; actorId: ActorId; contents: ContentsEntry[] }
   | { kind: 'actorHitPointsSet'; actorId: ActorId; hitPoints: HitPoints }
+  | { kind: 'actorVitalsSet'; actorId: ActorId; vitals: Vitals }
   | { kind: 'pathSet'; actorId: ActorId; path: { x: number; y: number }[] };
 
 export interface SimDiff {

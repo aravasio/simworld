@@ -7,6 +7,7 @@ import {
   setHitPoints,
   setPosition,
   clearPosition,
+  setVitals,
   updatePosition,
   updateRenderable,
   getPosition,
@@ -113,6 +114,8 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
       nextActors = setContents(nextActors, m.actorId, m.contents);
     } else if (m.kind === 'actorHitPointsSet') {
       nextActors = setHitPoints(nextActors, m.actorId, m.hitPoints);
+    } else if (m.kind === 'actorVitalsSet') {
+      nextActors = setVitals(nextActors, m.actorId, m.vitals);
     } else if (m.kind === 'pathSet') {
       nextActors = setPath(nextActors, m.actorId, m.path);
     }
