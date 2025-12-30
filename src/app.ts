@@ -22,6 +22,7 @@ import {
   getRenderable,
   getTags,
   getKind,
+  getStackable,
   getVitals,
   isSelectable,
 } from './actors';
@@ -51,12 +52,14 @@ export function startApp() {
     const pos = getPosition(currentState.actors, actor.id);
     if (!pos) return [];
     const rend = getRenderable(currentState.actors, actor.id);
+    const stack = getStackable(currentState.actors, actor.id);
     return [
       {
         id: actor.id,
         x: pos.x,
         y: pos.y,
         glyphId: rend?.glyphId ?? 0,
+        stackCount: stack?.count,
       },
     ];
   });
@@ -170,12 +173,14 @@ export function startApp() {
       const pos = getPosition(currentState.actors, actor.id);
       if (!pos) return [];
       const rend = getRenderable(currentState.actors, actor.id);
+      const stack = getStackable(currentState.actors, actor.id);
       return [
         {
           id: actor.id,
           x: pos.x,
           y: pos.y,
           glyphId: rend?.glyphId ?? 0,
+          stackCount: stack?.count,
         },
       ];
     });

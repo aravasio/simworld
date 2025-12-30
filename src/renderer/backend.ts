@@ -18,6 +18,7 @@ export interface AgentVisual {
   x: number;
   y: number;
   glyphId: number;
+  stackCount?: number;
 }
 
 export interface RenderBackend {
@@ -25,7 +26,7 @@ export interface RenderBackend {
   setStaticTiles(width: number, height: number, tiles: number[]): void; // glyphId per tile
   applyTileChanges(changes: TileChange[]): void;
   setActors(actors: AgentVisual[]): void;
-  applyActorMoves(moves: Array<{ id: number; x: number; y: number; glyphId?: number }>): void;
+  applyActorMoves(moves: Array<{ id: number; x: number; y: number; glyphId?: number; stackCount?: number }>): void;
   setCursorPosition(x: number, y: number): void;
   draw(): void;
   destroy(): void;

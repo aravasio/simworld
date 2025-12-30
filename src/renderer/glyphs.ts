@@ -20,7 +20,7 @@ export function glyphForActor(glyphId: number): GlyphStyle {
     case 5:
       return { char: 'C', color: '#b5895b' }; // chest
     case 6:
-      return { char: '$', color: '#f6d365' }; // gold coin
+      return { char: '.', color: '#f6d365' }; // gold coin
     case 7:
       return { char: 'c', color: '#c8a26a' }; // open chest
     default:

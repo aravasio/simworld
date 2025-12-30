@@ -12,7 +12,7 @@ export class PixiBackend implements RenderBackend {
   private cellSize = 48; // fixed pixel size per cell
   private gridWidth = 0;
   private gridHeight = 0;
-  private agentSprites = new Map<number, Text>();
+  private agentSprites = new Map<number, Container>();
   private cursor: Graphics | null = null;
 
   async init(canvas: HTMLCanvasElement, _tileset: TilesetMeta): Promise<void> {
@@ -71,8 +71,10 @@ export class PixiBackend implements RenderBackend {
     actors.forEach((a) => this.addOrUpdateActor(a));
   }
 
-  applyActorMoves(moves: Array<{ id: number; x: number; y: number; glyphId?: number }>): void {
-    moves.forEach((move) => this.addOrUpdateActor({ id: move.id, x: move.x, y: move.y, glyphId: move.glyphId ?? 0 }));
+  applyActorMoves(moves: Array<{ id: number; x: number; y: number; glyphId?: number; stackCount?: number }>): void {
+    moves.forEach((move) =>
+      this.addOrUpdateActor({ id: move.id, x: move.x, y: move.y, glyphId: move.glyphId ?? 0, stackCount: move.stackCount })
+    );
   }
 
   setCursorPosition(x: number, y: number): void {
@@ -99,8 +101,26 @@ export class PixiBackend implements RenderBackend {
     if (!this.agentLayer) return;
     let sprite = this.agentSprites.get(actor.id);
     if (!sprite) {
-      const { char, color } = glyphForActor(actor.glyphId);
-      sprite = new Text(
+      sprite = new Container();
+      this.agentLayer.addChild(sprite);
+      this.agentSprites.set(actor.id, sprite);
+    }
+    sprite.removeChildren();
+
+    const { char, color } = glyphForActor(actor.glyphId);
+    if (actor.glyphId === 6) {
+      const count = Math.max(1, actor.stackCount ?? 1);
+      const offsets = getCoinOffsets(count, this.cellSize);
+      const style = getCoinStyle(this.cellSize, color);
+      for (const offset of offsets) {
+        const coin = new Text(char, style);
+        coin.anchor.set(0.5);
+        coin.x = offset.x;
+        coin.y = offset.y;
+        sprite.addChild(coin);
+      }
+    } else {
+      const text = new Text(
         char,
         new TextStyle({
           fill: color,
@@ -109,20 +129,41 @@ export class PixiBackend implements RenderBackend {
           fontWeight: 'bold',
         })
       );
-
-      sprite.anchor.set(0.5);
-      this.agentLayer.addChild(sprite);
-      this.agentSprites.set(actor.id, sprite);
+      text.anchor.set(0.5);
+      sprite.addChild(text);
     }
-    const { char, color } = glyphForActor(actor.glyphId);
-    sprite.text = char;
-    sprite.style = new TextStyle({
-      fill: color,
-      fontFamily: 'monospace',
-      fontSize: Math.floor(this.cellSize * 0.6),
-      fontWeight: 'bold',
-    });
+
     sprite.x = (actor.x + 0.5) * this.cellSize;
     sprite.y = (actor.y + 0.5) * this.cellSize;
   }
+}
+
+function getCoinOffsets(count: number, cellSize: number): Array<{ x: number; y: number }> {
+  const spread = cellSize * 0.12;
+  if (count <= 1) return [{ x: 0, y: 0 }];
+  if (count === 2) {
+    return [
+      { x: -spread, y: spread * 0.2 },
+      { x: spread, y: -spread * 0.2 },
+    ];
+  }
+  return [
+    { x: 0, y: -spread },
+    { x: -spread, y: spread },
+    { x: spread, y: spread },
+  ];
+}
+
+function getCoinStyle(cellSize: number, color: string): TextStyle {
+  return new TextStyle({
+    fill: color,
+    fontFamily: 'monospace',
+    fontSize: Math.floor(cellSize * 0.35),
+    fontWeight: 'bold',
+    dropShadow: true,
+    dropShadowColor: '#3a2f14',
+    dropShadowBlur: 2,
+    dropShadowAngle: Math.PI / 4,
+    dropShadowDistance: 1,
+  });
 }
