@@ -71,14 +71,11 @@ export function createInspector(doc: Document): InspectorApi {
       const moveLabel = context.mode === 'move' ? 'Enter: Confirm Move' : 'Enter: Move';
       elements.actionHints.innerHTML = [
         `<span class="action">${moveLabel}</span>`,
-        context.hasTarget ? '<span class="action">I: Mine</span>' : '<span class="action">I: Mine (adjacent rock)</span>',
-        context.hasTarget ? '<span class="action">O: Fight</span>' : '<span class="action">O: Fight (adjacent target)</span>',
+        context.canMine ? '<span class="action">I: Mine</span>' : '<span class="action">I: Mine (adjacent rock)</span>',
+        context.canOpen ? '<span class="action">O: Open</span>' : '<span class="action">O: Open (adjacent chest)</span>',
+        context.canAttack ? '<span class="action">F: Smash</span>' : '<span class="action">F: Smash (adjacent target)</span>',
         '<span class="action">Esc: Cancel Move</span>',
       ].join(' ');
-      return;
-    }
-    if (context.hasTargetable) {
-      elements.actionHints.style.display = 'none';
       return;
     }
     elements.actionHints.style.display = 'none';

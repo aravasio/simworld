@@ -27,7 +27,8 @@ export interface InspectorContext {
 
 export interface ActionHintsContext {
   hasSelectable: boolean;
-  hasTarget: boolean;
+  canMine: boolean;
+  canOpen: boolean;
+  canAttack: boolean;
   mode: 'normal' | 'move';
-  hasTargetable: boolean;
 }

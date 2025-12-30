@@ -33,6 +33,12 @@ export function interpretKeyInput(input: KeyInput, context: InputContext): Input
     case 'i':
     case 'I':
       return context.canMine ? { kind: 'queueMine' } : { kind: 'none' };
+    case 'o':
+    case 'O':
+      return context.canOpen ? { kind: 'queueOpen' } : { kind: 'none' };
+    case 'f':
+    case 'F':
+      return context.canAttack ? { kind: 'queueAttack' } : { kind: 'none' };
     default:
       return { kind: 'none' };
   }

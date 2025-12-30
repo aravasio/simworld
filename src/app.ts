@@ -7,7 +7,7 @@ import { glyphForActor, glyphForTerrain } from './renderer/glyphs';
 import { RngSeed } from './rng';
 import { createInspector } from './inspector';
 import { interpretKeyInput } from './input';
-import { GameState, Command, CommandResult, findAdjacentTargetable } from './sim';
+import { GameState, Command, CommandResult, findAdjacentAttackable, findAdjacentChest, findAdjacentMineable } from './sim';
 import {
   findActorAt,
   getPosition,
@@ -16,7 +16,6 @@ import {
   getKind,
   getVitals,
   isSelectable,
-  isTargetable,
 } from './actors';
 import { inBounds } from './world';
 
@@ -88,12 +87,15 @@ export function startApp() {
     const actor = findActorAt(currentState.actors, cursor.x, cursor.y);
     const hasSelectable = actor ? isSelectable(currentState.actors, actor.id) : false;
     const pos = actor ? getPosition(currentState.actors, actor.id) : undefined;
-    const target = pos ? findAdjacentTargetable(currentState, pos.x, pos.y) : undefined;
+    const mineTarget = pos ? findAdjacentMineable(currentState, pos.x, pos.y) : undefined;
+    const openTarget = pos ? findAdjacentChest(currentState, pos.x, pos.y) : undefined;
+    const attackTarget = pos ? findAdjacentAttackable(currentState, pos.x, pos.y) : undefined;
     inspector.updateActionHints({
       hasSelectable,
-      hasTarget: !!target,
+      canMine: !!mineTarget,
+      canOpen: !!openTarget,
+      canAttack: !!attackTarget,
       mode: uiState.mode,
-      hasTargetable: actor ? isTargetable(currentState.actors, actor.id) : false,
     });
   };
 
@@ -174,6 +176,14 @@ export function startApp() {
     commandQueue.push({ kind: 'mine', actorId });
   };
 
+  const queueOpen = (actorId: number) => {
+    commandQueue.push({ kind: 'open', actorId });
+  };
+
+  const queueAttack = (actorId: number) => {
+    commandQueue.push({ kind: 'attack', actorId });
+  };
+
   const handleCommandResults = (results: CommandResult[]) => {
     for (const result of results) {
       if (result.status !== 'error') {
@@ -190,8 +200,12 @@ export function startApp() {
       if (reason === 'not_walkable') message = 'Blocked: terrain not walkable.';
       if (reason === 'blocked') message = 'Blocked: occupied.';
       if (reason === 'no_path') message = 'Blocked: no path.';
-      if (reason === 'no_target') message = 'Mine: no target adjacent.';
-      if (reason === 'not_mineable') message = 'Mine: invalid target.';
+      if (result.kind === 'mine' && reason === 'no_target') message = 'Mine: no target adjacent.';
+      if (result.kind === 'mine' && reason === 'not_mineable') message = 'Mine: invalid target.';
+      if (result.kind === 'open' && reason === 'no_target') message = 'Open: no chest adjacent.';
+      if (result.kind === 'open' && reason === 'locked') message = 'Open: chest is locked.';
+      if (result.kind === 'attack' && reason === 'no_target') message = 'Smash: no target adjacent.';
+      if (result.kind === 'attack' && reason === 'not_attackable') message = 'Smash: target cannot be damaged.';
       inspector.setStatus(message);
       if (result.kind === 'moveTo' && uiState.pendingMoveActorId === result.actorId) {
         uiState.pendingMoveActorId = null;
@@ -203,14 +217,18 @@ export function startApp() {
     const actorAtCursor = findActorAt(currentState.actors, cursor.x, cursor.y);
     const selectableAtCursor = actorAtCursor ? isSelectable(currentState.actors, actorAtCursor.id) : false;
     const actorPos = actorAtCursor && selectableAtCursor ? getPosition(currentState.actors, actorAtCursor.id) : undefined;
-    const target = actorPos ? findAdjacentTargetable(currentState, actorPos.x, actorPos.y) : undefined;
+    const mineTarget = actorPos ? findAdjacentMineable(currentState, actorPos.x, actorPos.y) : undefined;
+    const openTarget = actorPos ? findAdjacentChest(currentState, actorPos.x, actorPos.y) : undefined;
+    const attackTarget = actorPos ? findAdjacentAttackable(currentState, actorPos.x, actorPos.y) : undefined;
     const intent = interpretKeyInput(
       { key: event.key, ctrlKey: event.ctrlKey },
       {
         mode: uiState.mode,
         isPaused,
         hasSelectableAtCursor: selectableAtCursor,
-        canMine: !!target,
+        canMine: !!mineTarget,
+        canOpen: !!openTarget,
+        canAttack: !!attackTarget,
       }
     );
 
@@ -252,6 +270,16 @@ export function startApp() {
       case 'queueMine':
         if (actorAtCursor && selectableAtCursor) {
           queueMine(actorAtCursor.id);
+        }
+        break;
+      case 'queueOpen':
+        if (actorAtCursor && selectableAtCursor) {
+          queueOpen(actorAtCursor.id);
+        }
+        break;
+      case 'queueAttack':
+        if (actorAtCursor && selectableAtCursor) {
+          queueAttack(actorAtCursor.id);
         }
         break;
       case 'none':

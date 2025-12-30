@@ -5,6 +5,8 @@ export interface InputContext {
   isPaused: boolean;
   hasSelectableAtCursor: boolean;
   canMine: boolean;
+  canOpen: boolean;
+  canAttack: boolean;
 }
 
 export interface KeyInput {
@@ -20,4 +22,6 @@ export type InputIntent =
   | { kind: 'confirmMove' }
   | { kind: 'cancelMove' }
   | { kind: 'queueMine' }
+  | { kind: 'queueOpen' }
+  | { kind: 'queueAttack' }
   | { kind: 'none' };
