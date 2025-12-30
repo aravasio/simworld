@@ -189,6 +189,50 @@ test('attack destroys chest at zero hp and drops contents', () => {
   assertPosition(getPosition(result.nextState.actors, 10), 1, 2, 'contents dropped at chest position');
 });
 
+test('pickup moves item into actor contents and clears position', () => {
+  const world = buildWorld(3, 3);
+  let actors = createActors();
+  actors = createActor(actors, { id: 1 }, [ActorComponents.position({ x: 1, y: 1 })]);
+  actors = createActor(actors, { id: 10 }, [
+    ActorComponents.kind('gold-coin'),
+    ActorComponents.position({ x: 1, y: 2 }),
+    ActorComponents.renderable({ glyphId: 6 }),
+    ActorComponents.stackable({ count: 2 }),
+    ActorComponents.tags(['item']),
+    ActorComponents.passability({ allowsPassThrough: true }),
+  ]);
+
+  const state: GameState = { world, actors, tick: 0, nextActorId: 20 };
+  const result = step(state, [{ kind: 'pickup', actorId: 1 }], 1);
+
+  const contents = getContents(result.nextState.actors, 1);
+  assertEqual(result.diff.commandResults[0].status, 'ok', 'pickup should succeed');
+  assertEqual(contents?.length ?? 0, 1, 'pickup should add one contents entry');
+  assertEqual(contents?.[0]?.itemId, 10, 'contents entry should reference item actor');
+  assertEqual(contents?.[0]?.kind, 'stack', 'stackable item should use stack entry');
+  assert(!getPosition(result.nextState.actors, 10), 'picked item should have no position');
+});
+
+test('pickup works when item is on the same tile', () => {
+  const world = buildWorld(3, 3);
+  let actors = createActors();
+  actors = createActor(actors, { id: 1 }, [ActorComponents.position({ x: 1, y: 1 })]);
+  actors = createActor(actors, { id: 10 }, [
+    ActorComponents.kind('gold-coin'),
+    ActorComponents.position({ x: 1, y: 1 }),
+    ActorComponents.renderable({ glyphId: 6 }),
+    ActorComponents.stackable({ count: 1 }),
+    ActorComponents.tags(['item']),
+    ActorComponents.passability({ allowsPassThrough: true }),
+  ]);
+
+  const state: GameState = { world, actors, tick: 0, nextActorId: 20 };
+  const result = step(state, [{ kind: 'pickup', actorId: 1 }], 1);
+
+  assertEqual(result.diff.commandResults[0].status, 'ok', 'pickup should succeed');
+  assert(!getPosition(result.nextState.actors, 10), 'picked item should have no position');
+});
+
 test('moveTo reports error and does not change state when blocked', () => {
   const world = buildWorld(3, 3);
   let actors = createActors();

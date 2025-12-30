@@ -1,4 +1,4 @@
-import { getContents, getHitPoints, getKind, getLockState, getPosition, isTargetable } from '../actors';
+import { getContents, getHitPoints, getKind, getLockState, getPosition, getStackable, getTags, isTargetable } from '../actors';
 import type { ActorId, ContentsEntry, HitPoints } from '../actors';
 import type { GameState, Mutation } from './types';
 
@@ -27,6 +27,23 @@ export function findAdjacentAttackable(state: GameState, x: number, y: number): 
     if (dx === 0 && dy === 0) continue;
     if (dx <= 1 && dy <= 1 && isTargetable(state.actors, actor.id) && getHitPoints(state.actors, actor.id)) {
       return { id: actor.id, x: pos.x, y: pos.y };
+    }
+  }
+  return null;
+}
+
+export function findAdjacentPickable(state: GameState, x: number, y: number): { id: ActorId; x: number; y: number } | null {
+  for (const actor of state.actors.actors) {
+    const pos = getPosition(state.actors, actor.id);
+    if (!pos) continue;
+    const dx = Math.abs(pos.x - x);
+    const dy = Math.abs(pos.y - y);
+    if (dx <= 1 && dy <= 1) {
+      const tags = getTags(state.actors, actor.id);
+      const stackable = getStackable(state.actors, actor.id);
+      if (stackable || tags?.has('item')) {
+        return { id: actor.id, x: pos.x, y: pos.y };
+      }
     }
   }
   return null;
@@ -73,6 +90,23 @@ export function maybeQueueAttack(
     }
     mutations.push({ kind: 'actorRemoved', actorId: target.id });
   }
+  return { status: 'ok' };
+}
+
+export function maybeQueuePickup(
+  mutations: Mutation[],
+  state: GameState,
+  actorId: ActorId
+): { status: 'ok' | 'error'; reason?: string } {
+  const pos = getPosition(state.actors, actorId);
+  if (!pos) return { status: 'error', reason: 'missing_position' };
+  const target = findAdjacentPickable(state, pos.x, pos.y);
+  if (!target) return { status: 'error', reason: 'no_target' };
+  const contents = getContents(state.actors, actorId) ?? [];
+  const isStackable = !!getStackable(state.actors, target.id);
+  const entry: ContentsEntry = { kind: isStackable ? 'stack' : 'single', itemId: target.id };
+  mutations.push({ kind: 'actorContentsSet', actorId, contents: contents.concat(entry) });
+  mutations.push({ kind: 'actorPositionCleared', actorId: target.id });
   return { status: 'ok' };
 }
 
