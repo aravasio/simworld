@@ -13,6 +13,7 @@ export function createInitialActors(worldSize: { width: number; height: number }
     }),
     ActorComponents.tags(['dwarf']),
     ActorComponents.selectable(true),
+    ActorComponents.contents([]),
     ActorComponents.passability({ allowsPassThrough: true }),
   ]); // Green X to the left
   actors = createActor(actors, { id: 2 }, [
@@ -26,6 +27,7 @@ export function createInitialActors(worldSize: { width: number; height: number }
     }),
     ActorComponents.tags(['dwarf']),
     ActorComponents.selectable(true),
+    ActorComponents.contents([]),
     ActorComponents.passability({ allowsPassThrough: true }),
   ]); // Red Y to the right
 
