@@ -37,7 +37,7 @@ A tiny, purpose-built engine for deterministic grid-world simulation: the world 
 
 ## Commands and Mutations (What/Why)
 - **Commands** (inputs)
-  - Examples: Move { actorId, dir }, MoveTo { actorId, x, y }, Mine { actorId }, Open { actorId }, Attack { actorId }, Wait { actorId }.
+  - Examples: Move { actorId, dir }, MoveTo { actorId, x, y }, Mine { actorId }, Open { actorId }, Attack { actorId }, Pickup { actorId }, Wait { actorId }.
   - Rationale: explicit intents from player/AI; ordered processing for determinism.
 - **Mutations** (state changes)
   - Examples: ActorMoved { actorId, from, to }, ActorAdded/Removed, PathSet, TileChanged { x, y, terrainTypeId?, flagsMask?, flagsOp }.
