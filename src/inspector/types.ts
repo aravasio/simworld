@@ -30,5 +30,6 @@ export interface ActionHintsContext {
   canMine: boolean;
   canOpen: boolean;
   canAttack: boolean;
+  canPickup: boolean;
   mode: 'normal' | 'move';
 }

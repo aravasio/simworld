@@ -7,6 +7,7 @@ export interface InputContext {
   canMine: boolean;
   canOpen: boolean;
   canAttack: boolean;
+  canPickup: boolean;
 }
 
 export interface KeyInput {
@@ -24,4 +25,5 @@ export type InputIntent =
   | { kind: 'queueMine' }
   | { kind: 'queueOpen' }
   | { kind: 'queueAttack' }
+  | { kind: 'queuePickup' }
   | { kind: 'none' };

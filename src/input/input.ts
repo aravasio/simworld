@@ -39,6 +39,9 @@ export function interpretKeyInput(input: KeyInput, context: InputContext): Input
     case 'f':
     case 'F':
       return context.canAttack ? { kind: 'queueAttack' } : { kind: 'none' };
+    case 'g':
+    case 'G':
+      return context.canPickup ? { kind: 'queuePickup' } : { kind: 'none' };
     default:
       return { kind: 'none' };
   }

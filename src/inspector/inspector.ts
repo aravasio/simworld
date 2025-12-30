@@ -74,6 +74,7 @@ export function createInspector(doc: Document): InspectorApi {
         context.canMine ? '<span class="action">I: Mine</span>' : '<span class="action">I: Mine (adjacent rock)</span>',
         context.canOpen ? '<span class="action">O: Open</span>' : '<span class="action">O: Open (adjacent chest)</span>',
         context.canAttack ? '<span class="action">F: Smash</span>' : '<span class="action">F: Smash (adjacent target)</span>',
+        context.canPickup ? '<span class="action">G: Pick Up</span>' : '<span class="action">G: Pick Up (adjacent item)</span>',
         '<span class="action">Esc: Cancel Move</span>',
       ].join(' ');
       return;

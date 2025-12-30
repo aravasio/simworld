@@ -9,6 +9,7 @@ test('input mapping handles pause, step, and cursor movement', () => {
     canMine: false,
     canOpen: false,
     canAttack: false,
+    canPickup: false,
   };
   const runningCtx = {
     mode: 'normal',
@@ -17,6 +18,7 @@ test('input mapping handles pause, step, and cursor movement', () => {
     canMine: false,
     canOpen: false,
     canAttack: false,
+    canPickup: false,
   };
 
   assertEqual(interpretKeyInput({ key: ' ', ctrlKey: true }, pausedCtx).kind, 'stepOnce', 'ctrl+space step');
@@ -32,12 +34,21 @@ test('input mapping handles pause, step, and cursor movement', () => {
 });
 
 test('input mapping handles move mode and action gating', () => {
-  const selectableCtx = { mode: 'normal', isPaused: false, hasSelectableAtCursor: true, canMine: false, canOpen: false, canAttack: false };
-  const moveCtx = { mode: 'move', isPaused: false, hasSelectableAtCursor: true, canMine: false, canOpen: false, canAttack: false };
-  const canMineCtx = { mode: 'normal', isPaused: false, hasSelectableAtCursor: true, canMine: true, canOpen: false, canAttack: false };
-  const noMineCtx = { mode: 'normal', isPaused: false, hasSelectableAtCursor: true, canMine: false, canOpen: false, canAttack: false };
-  const canOpenCtx = { mode: 'normal', isPaused: false, hasSelectableAtCursor: true, canMine: false, canOpen: true, canAttack: false };
-  const canAttackCtx = { mode: 'normal', isPaused: false, hasSelectableAtCursor: true, canMine: false, canOpen: false, canAttack: true };
+  const selectableCtx = {
+    mode: 'normal',
+    isPaused: false,
+    hasSelectableAtCursor: true,
+    canMine: false,
+    canOpen: false,
+    canAttack: false,
+    canPickup: false,
+  };
+  const moveCtx = { ...selectableCtx, mode: 'move' as const };
+  const canMineCtx = { ...selectableCtx, canMine: true };
+  const noMineCtx = { ...selectableCtx, canMine: false };
+  const canOpenCtx = { ...selectableCtx, canOpen: true };
+  const canAttackCtx = { ...selectableCtx, canAttack: true };
+  const canPickupCtx = { ...selectableCtx, canPickup: true };
 
   assertEqual(interpretKeyInput({ key: 'Enter' }, selectableCtx).kind, 'enterMoveMode', 'enter should start move');
   assertEqual(interpretKeyInput({ key: 'Enter' }, moveCtx).kind, 'confirmMove', 'enter should confirm move');
@@ -46,4 +57,5 @@ test('input mapping handles move mode and action gating', () => {
   assertEqual(interpretKeyInput({ key: 'i' }, noMineCtx).kind, 'none', 'mine gated when no target');
   assertEqual(interpretKeyInput({ key: 'o' }, canOpenCtx).kind, 'queueOpen', 'open when chest exists');
   assertEqual(interpretKeyInput({ key: 'f' }, canAttackCtx).kind, 'queueAttack', 'attack when target exists');
+  assertEqual(interpretKeyInput({ key: 'g' }, canPickupCtx).kind, 'queuePickup', 'pickup when item exists');
 });

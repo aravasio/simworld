@@ -7,7 +7,15 @@ import { glyphForActor, glyphForTerrain } from './renderer/glyphs';
 import { RngSeed } from './rng';
 import { createInspector } from './inspector';
 import { interpretKeyInput } from './input';
-import { GameState, Command, CommandResult, findAdjacentAttackable, findAdjacentChest, findAdjacentMineable } from './sim';
+import {
+  GameState,
+  Command,
+  CommandResult,
+  findAdjacentAttackable,
+  findAdjacentChest,
+  findAdjacentMineable,
+  findAdjacentPickable,
+} from './sim';
 import {
   findActorAt,
   getPosition,
@@ -90,11 +98,13 @@ export function startApp() {
     const mineTarget = pos ? findAdjacentMineable(currentState, pos.x, pos.y) : undefined;
     const openTarget = pos ? findAdjacentChest(currentState, pos.x, pos.y) : undefined;
     const attackTarget = pos ? findAdjacentAttackable(currentState, pos.x, pos.y) : undefined;
+    const pickableTarget = pos ? findAdjacentPickable(currentState, pos.x, pos.y) : undefined;
     inspector.updateActionHints({
       hasSelectable,
       canMine: !!mineTarget,
       canOpen: !!openTarget,
       canAttack: !!attackTarget,
+      canPickup: !!pickableTarget,
       mode: uiState.mode,
     });
   };
@@ -184,6 +194,10 @@ export function startApp() {
     commandQueue.push({ kind: 'attack', actorId });
   };
 
+  const queuePickup = (actorId: number) => {
+    commandQueue.push({ kind: 'pickup', actorId });
+  };
+
   const handleCommandResults = (results: CommandResult[]) => {
     for (const result of results) {
       if (result.status !== 'error') {
@@ -206,6 +220,7 @@ export function startApp() {
       if (result.kind === 'open' && reason === 'locked') message = 'Open: chest is locked.';
       if (result.kind === 'attack' && reason === 'no_target') message = 'Smash: no target adjacent.';
       if (result.kind === 'attack' && reason === 'not_attackable') message = 'Smash: target cannot be damaged.';
+      if (result.kind === 'pickup' && reason === 'no_target') message = 'Pick up: no item adjacent.';
       inspector.setStatus(message);
       if (result.kind === 'moveTo' && uiState.pendingMoveActorId === result.actorId) {
         uiState.pendingMoveActorId = null;
@@ -220,6 +235,7 @@ export function startApp() {
     const mineTarget = actorPos ? findAdjacentMineable(currentState, actorPos.x, actorPos.y) : undefined;
     const openTarget = actorPos ? findAdjacentChest(currentState, actorPos.x, actorPos.y) : undefined;
     const attackTarget = actorPos ? findAdjacentAttackable(currentState, actorPos.x, actorPos.y) : undefined;
+    const pickableTarget = actorPos ? findAdjacentPickable(currentState, actorPos.x, actorPos.y) : undefined;
     const intent = interpretKeyInput(
       { key: event.key, ctrlKey: event.ctrlKey },
       {
@@ -229,6 +245,7 @@ export function startApp() {
         canMine: !!mineTarget,
         canOpen: !!openTarget,
         canAttack: !!attackTarget,
+        canPickup: !!pickableTarget,
       }
     );
 
@@ -280,6 +297,11 @@ export function startApp() {
       case 'queueAttack':
         if (actorAtCursor && selectableAtCursor) {
           queueAttack(actorAtCursor.id);
+        }
+        break;
+      case 'queuePickup':
+        if (actorAtCursor && selectableAtCursor) {
+          queuePickup(actorAtCursor.id);
         }
         break;
       case 'none':
