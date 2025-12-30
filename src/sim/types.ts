@@ -1,4 +1,4 @@
-import type { ActorsState, ActorId } from '../actors';
+import type { ActorsState, ActorId, ContentsEntry, HitPoints, Renderable } from '../actors';
 import type { WorldState } from '../world';
 import type { RngSeed } from '../rng';
 import type { PathfindingFn } from '../pathfinding';
@@ -14,12 +14,18 @@ export type Command =
   | { kind: 'move'; actorId: ActorId; dir: 'N' | 'S' | 'E' | 'W' }
   | { kind: 'moveTo'; actorId: ActorId; x: number; y: number }
   | { kind: 'mine'; actorId: ActorId }
+  | { kind: 'open'; actorId: ActorId }
+  | { kind: 'attack'; actorId: ActorId }
   | { kind: 'wait'; actorId: ActorId };
 
 export type Mutation =
   | { kind: 'actorMoved'; actorId: ActorId; from: { x: number; y: number }; to: { x: number; y: number } }
+  | { kind: 'actorPositionSet'; actorId: ActorId; position: { x: number; y: number } }
   | { kind: 'actorRemoved'; actorId: ActorId }
   | { kind: 'actorAdded'; actorId: ActorId; x: number; y: number; glyphId: number }
+  | { kind: 'actorRenderableSet'; actorId: ActorId; renderable: Renderable }
+  | { kind: 'actorContentsSet'; actorId: ActorId; contents: ContentsEntry[] }
+  | { kind: 'actorHitPointsSet'; actorId: ActorId; hitPoints: HitPoints }
   | { kind: 'pathSet'; actorId: ActorId; path: { x: number; y: number }[] };
 
 export interface SimDiff {
@@ -35,6 +41,8 @@ export type CommandResult =
   | { kind: 'move'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
   | { kind: 'moveTo'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
   | { kind: 'mine'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
+  | { kind: 'open'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
+  | { kind: 'attack'; actorId: ActorId; status: 'ok' | 'error'; reason?: string }
   | { kind: 'wait'; actorId: ActorId; status: 'ok' };
 
 export interface StepResult {

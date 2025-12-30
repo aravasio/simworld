@@ -1,9 +1,21 @@
-import { ActorComponents, createActor, removeActor, setPath, updatePosition, getPosition } from '../actors';
+import {
+  ActorComponents,
+  createActor,
+  removeActor,
+  setPath,
+  setContents,
+  setHitPoints,
+  setPosition,
+  updatePosition,
+  updateRenderable,
+  getPosition,
+} from '../actors';
 import { nextInt, RngSeed } from '../rng';
 import { Pathfinding } from '../pathfinding';
 import type { Command, GameState, Mutation, SimConfig, SimDiff, StepResult, CommandResult } from './types';
 import { maybeQueueMove, getMoveFailureReason, planMoveTo, getDirOffset } from './movement';
 import { maybeQueueMine } from './mining';
+import { maybeQueueAttack, maybeQueueOpen } from './interactions';
 import { queuePathSteps } from './pathing';
 
 export function step(state: GameState, commands: Command[], rngSeed: RngSeed, config: SimConfig = {}): StepResult {
@@ -44,6 +56,12 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
       nextActorId = result.nextActorId;
       seed = result.nextSeed;
       commandResults.push({ kind: 'mine', actorId: cmd.actorId, status: result.status, reason: result.reason });
+    } else if (cmd.kind === 'open') {
+      const result = maybeQueueOpen(mutations, state, cmd.actorId);
+      commandResults.push({ kind: 'open', actorId: cmd.actorId, status: result.status, reason: result.reason });
+    } else if (cmd.kind === 'attack') {
+      const result = maybeQueueAttack(mutations, state, cmd.actorId);
+      commandResults.push({ kind: 'attack', actorId: cmd.actorId, status: result.status, reason: result.reason });
     } else if (cmd.kind === 'wait') {
       commandResults.push({ kind: 'wait', actorId: cmd.actorId, status: 'ok' });
     }
@@ -69,6 +87,8 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
     if (m.kind === 'actorMoved') {
       nextActors = updatePosition(nextActors, m.actorId, { x: m.to.x, y: m.to.y });
       actorMoves.push({ actorId: m.actorId, from: m.from, to: m.to });
+    } else if (m.kind === 'actorPositionSet') {
+      nextActors = setPosition(nextActors, m.actorId, m.position);
     } else if (m.kind === 'actorRemoved') {
       nextActors = removeActor(nextActors, m.actorId);
       actorsRemoved.push(m.actorId);
@@ -81,6 +101,12 @@ export function step(state: GameState, commands: Command[], rngSeed: RngSeed, co
         ActorComponents.passability({ allowsPassThrough: true }),
       ]);
       actorsAdded.push({ actorId: m.actorId, x: m.x, y: m.y, glyphId: m.glyphId });
+    } else if (m.kind === 'actorRenderableSet') {
+      nextActors = updateRenderable(nextActors, m.actorId, m.renderable);
+    } else if (m.kind === 'actorContentsSet') {
+      nextActors = setContents(nextActors, m.actorId, m.contents);
+    } else if (m.kind === 'actorHitPointsSet') {
+      nextActors = setHitPoints(nextActors, m.actorId, m.hitPoints);
     } else if (m.kind === 'pathSet') {
       nextActors = setPath(nextActors, m.actorId, m.path);
     }

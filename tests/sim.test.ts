@@ -1,4 +1,4 @@
-import { createActors, createActor, ActorComponents, getPath, getPosition } from '../src/actors';
+import { createActors, createActor, ActorComponents, getContents, getPath, getPosition, getRenderable } from '../src/actors';
 import { step, GameState } from '../src/sim';
 import { buildWorld, assert, assertEqual, assertPosition, hasActor, snapshotPositions, test } from './harness';
 
@@ -127,6 +127,66 @@ test('mine does nothing when no adjacent target exists', () => {
   const result = step(state, [{ kind: 'mine', actorId: 1 }], 1);
   assertEqual(result.diff.actorsRemoved.length, 0, 'no rock should be removed');
   assertEqual(result.diff.actorsAdded.length, 0, 'no drops should be added');
+});
+
+test('open drops chest contents and marks it open', () => {
+  const world = buildWorld(3, 3);
+  let actors = createActors();
+  actors = createActor(actors, { id: 1 }, [ActorComponents.position({ x: 1, y: 1 })]);
+  actors = createActor(actors, { id: 10 }, [
+    ActorComponents.kind('gold-coin'),
+    ActorComponents.renderable({ glyphId: 6 }),
+    ActorComponents.stackable({ count: 5 }),
+    ActorComponents.passability({ allowsPassThrough: true }),
+  ]);
+  actors = createActor(actors, { id: 2 }, [
+    ActorComponents.kind('chest'),
+    ActorComponents.position({ x: 1, y: 2 }),
+    ActorComponents.renderable({ glyphId: 5 }),
+    ActorComponents.hp({ hp: 3, maxHp: 3 }),
+    ActorComponents.lock({ isLocked: false }),
+    ActorComponents.contents([{ kind: 'stack', itemId: 10 }]),
+    ActorComponents.targetable(true),
+    ActorComponents.passability({ allowsPassThrough: false }),
+  ]);
+
+  const state: GameState = { world, actors, tick: 0, nextActorId: 20 };
+  const result = step(state, [{ kind: 'open', actorId: 1 }], 1);
+
+  const chestContents = getContents(result.nextState.actors, 2);
+  assertEqual(result.diff.commandResults[0].status, 'ok', 'open should succeed');
+  assertEqual(chestContents?.length ?? 0, 0, 'chest should be emptied');
+  assertPosition(getPosition(result.nextState.actors, 10), 1, 2, 'contents dropped at chest position');
+  assertEqual(getRenderable(result.nextState.actors, 2)?.glyphId, 7, 'chest should switch to open glyph');
+});
+
+test('attack destroys chest at zero hp and drops contents', () => {
+  const world = buildWorld(3, 3);
+  let actors = createActors();
+  actors = createActor(actors, { id: 1 }, [ActorComponents.position({ x: 1, y: 1 })]);
+  actors = createActor(actors, { id: 10 }, [
+    ActorComponents.kind('gold-coin'),
+    ActorComponents.renderable({ glyphId: 6 }),
+    ActorComponents.stackable({ count: 1 }),
+    ActorComponents.passability({ allowsPassThrough: true }),
+  ]);
+  actors = createActor(actors, { id: 2 }, [
+    ActorComponents.kind('chest'),
+    ActorComponents.position({ x: 1, y: 2 }),
+    ActorComponents.renderable({ glyphId: 5 }),
+    ActorComponents.hp({ hp: 1, maxHp: 1 }),
+    ActorComponents.lock({ isLocked: false }),
+    ActorComponents.contents([{ kind: 'stack', itemId: 10 }]),
+    ActorComponents.targetable(true),
+    ActorComponents.passability({ allowsPassThrough: false }),
+  ]);
+
+  const state: GameState = { world, actors, tick: 0, nextActorId: 20 };
+  const result = step(state, [{ kind: 'attack', actorId: 1 }], 1);
+
+  assert(result.diff.actorsRemoved.includes(2), 'chest should be removed');
+  assert(!hasActor(result.nextState, 2), 'removed chest should not exist in next state');
+  assertPosition(getPosition(result.nextState.actors, 10), 1, 2, 'contents dropped at chest position');
 });
 
 test('moveTo reports error and does not change state when blocked', () => {

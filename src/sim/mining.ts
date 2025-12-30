@@ -26,6 +26,20 @@ export function maybeQueueMine(
   return { nextActorId: idCounter, nextSeed: roll.nextSeed, status: 'ok' };
 }
 
+export function findAdjacentMineable(state: GameState, x: number, y: number): { id: ActorId; x: number; y: number } | null {
+  for (const actor of state.actors.actors) {
+    const pos = getPosition(state.actors, actor.id);
+    if (!pos) continue;
+    const dx = Math.abs(pos.x - x);
+    const dy = Math.abs(pos.y - y);
+    if (dx === 0 && dy === 0) continue;
+    if (dx <= 1 && dy <= 1 && isTargetable(state.actors, actor.id) && getKind(state.actors, actor.id) === 'rock') {
+      return { id: actor.id, x: pos.x, y: pos.y };
+    }
+  }
+  return null;
+}
+
 export function findAdjacentTargetable(state: GameState, x: number, y: number): { id: ActorId; x: number; y: number } | null {
   for (const actor of state.actors.actors) {
     const pos = getPosition(state.actors, actor.id);
